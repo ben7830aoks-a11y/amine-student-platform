@@ -149,7 +149,7 @@
             if (typeof window.Chart !== 'undefined') {
                 try { drawGraph(); } catch (e) {}
             }
-            if (sessionStorage.getItem('smartStudentScreenLocked') === '1') lockScreenNow();
+            sessionStorage.removeItem('smartStudentScreenLocked');
         }
         function logout() {
             clearBattleTimers(); clearTimeout(autoLockTimerId); clearInterval(invitePollTimerId); clearInterval(projectsPollTimerId); screenLocked = false; sessionStorage.removeItem('smartStudentScreenLocked');
