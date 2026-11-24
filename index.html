@@ -2069,5 +2069,47 @@
         })();
     </script>
 
+
+    <!-- تسجيل Service Worker وتفعيل التثبيت الحقيقي للتطبيق على الهاتف (PWA) -->
+    <script>
+        (function () {
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function () {
+                    navigator.serviceWorker.register('./sw.js').catch(function () {});
+                });
+            }
+
+            let deferredInstallPrompt = null;
+            window.addEventListener('beforeinstallprompt', function (e) {
+                e.preventDefault();
+                deferredInstallPrompt = e;
+            });
+
+            const originalTrigger = window.triggerPwaInstall;
+            window.triggerPwaInstall = async function () {
+                if (deferredInstallPrompt) {
+                    deferredInstallPrompt.prompt();
+                    try {
+                        await deferredInstallPrompt.userChoice;
+                    } catch (_) {}
+                    deferredInstallPrompt = null;
+                    return;
+                }
+                if (typeof originalTrigger === 'function') {
+                    return originalTrigger();
+                }
+                const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+                const msg = isIos
+                    ? 'لتثبيت التطبيق على آيفون: اضغط زر المشاركة ⬆️ ثم اختر "إضافة إلى الشاشة الرئيسية" (Add to Home Screen).'
+                    : 'لتثبيت التطبيق: افتح قائمة المتصفح (⋮) بالأعلى واختر "تثبيت التطبيق" (Install app).';
+                if (typeof showToast === 'function') {
+                    showToast(msg);
+                } else {
+                    alert(msg);
+                }
+            };
+        })();
+    </script>
+
 </body>
 </html>

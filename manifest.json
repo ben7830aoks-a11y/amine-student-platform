@@ -1,0 +1,27 @@
+{
+  "name": "منصة الطالب الذكية",
+  "short_name": "منصة الطالب",
+  "description": "منصة الطالب الذكية - بناء مشاريع، الآلة الحاسبة المتقدمة، دفتر الملاحظات، وتحويل الصور إلى فيديوهات",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
