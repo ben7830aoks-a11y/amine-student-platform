@@ -2481,5 +2481,144 @@
         })();
     </script>
 
+
+    <!-- ==================== حزمة المكتبات والروابط العلمية لتعزيز ردود الذكاء الاصطناعي ==================== -->
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjs@13.0.3/lib/browser/math.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/all.min.js"></script>
+    <script>
+        (function () {
+            const SCIENTIFIC_ENDPOINTS = {
+                openAlex: 'https://api.openalex.org/works',
+                wikipediaAr: 'https://ar.wikipedia.org/w/api.php',
+                wikipediaEn: 'https://en.wikipedia.org/w/api.php',
+                wikidata: 'https://www.wikidata.org/w/api.php'
+            };
+
+            function normalizeScientificQuery(raw) {
+                return String(raw || '')
+                    .replace(/[؟?!.,،؛:()\[\]{}"']/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            window.evaluateScienceMath = function (expr) {
+                const cleaned = String(expr || '').trim();
+                if (!cleaned) return { ok: false, error: 'EMPTY' };
+
+                if (window.math && typeof window.math.evaluate === 'function') {
+                    try {
+                        return { ok: true, engine: 'math.js', value: window.math.evaluate(cleaned) };
+                    } catch (err) {
+                        return { ok: false, engine: 'math.js', error: String(err.message || err) };
+                    }
+                }
+
+                const safeMath = cleaned.replace(/\^/g, '**').replace(/[^0-9+\-*/().%\s]/g, '');
+                if (!safeMath.trim() || !/[0-9]/.test(safeMath)) {
+                    return { ok: false, engine: 'fallback', error: 'UNSUPPORTED' };
+                }
+
+                try {
+                    const out = Function(`"use strict"; return (${safeMath});`)();
+                    if (typeof out === 'number' && Number.isFinite(out)) {
+                        return { ok: true, engine: 'fallback', value: out };
+                    }
+                    return { ok: false, engine: 'fallback', error: 'NON_FINITE' };
+                } catch (err) {
+                    return { ok: false, engine: 'fallback', error: String(err.message || err) };
+                }
+            };
+
+            window.solveSymbolicScience = function (expressionOrEq) {
+                const input = String(expressionOrEq || '').trim();
+                if (!input || typeof window.nerdamer !== 'function') return null;
+                try {
+                    return String(window.nerdamer(input).evaluate());
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            window.searchOpenAlexPapers = async function (query, limit = 3) {
+                const q = normalizeScientificQuery(query);
+                if (!q) return [];
+                try {
+                    const res = await fetch(`${SCIENTIFIC_ENDPOINTS.openAlex}?search=${encodeURIComponent(q)}&per-page=${limit}`);
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    return (Array.isArray(data?.results) ? data.results : []).map(w => ({
+                        source: 'OpenAlex',
+                        title: w.title || '',
+                        year: w.publication_year || '',
+                        citedBy: Number(w.cited_by_count || 0),
+                        doi: w.doi || ''
+                    }));
+                } catch (_) {
+                    return [];
+                }
+            };
+
+            window.searchWikipediaScience = async function (query, lang = 'ar') {
+                const q = normalizeScientificQuery(query);
+                if (!q) return null;
+                const endpoint = lang === 'en' ? SCIENTIFIC_ENDPOINTS.wikipediaEn : SCIENTIFIC_ENDPOINTS.wikipediaAr;
+                try {
+                    const searchUrl = `${endpoint}?action=query&list=search&srsearch=${encodeURIComponent(q)}&srlimit=1&format=json&origin=*`;
+                    const sRes = await fetch(searchUrl);
+                    if (!sRes.ok) return null;
+                    const sJson = await sRes.json();
+                    const title = sJson?.query?.search?.[0]?.title;
+                    if (!title) return null;
+
+                    const extUrl = `${endpoint}?action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+                    const eRes = await fetch(extUrl);
+                    if (!eRes.ok) return null;
+                    const eJson = await eRes.json();
+                    const pages = eJson?.query?.pages || {};
+                    const page = Object.values(pages)[0];
+                    if (!page || !page.extract) return null;
+
+                    return {
+                        source: lang === 'en' ? 'Wikipedia (EN)' : 'Wikipedia (AR)',
+                        title: page.title || title,
+                        extract: String(page.extract).slice(0, 700)
+                    };
+                } catch (_) {
+                    return null;
+                }
+            };
+
+            window.buildScientificAiContext = async function (promptText) {
+                const q = normalizeScientificQuery(promptText);
+                if (!q) return '';
+
+                const exprMatch = q.match(/[0-9]+(?:\s*[+\-*/^().%]\s*[0-9]+)+/);
+                const mathCalc = exprMatch ? window.evaluateScienceMath(exprMatch[0]) : null;
+                const symbolic = window.solveSymbolicScience(q);
+
+                const [wikiAr, papers] = await Promise.all([
+                    window.searchWikipediaScience(q, 'ar'),
+                    window.searchOpenAlexPapers(q, 3)
+                ]);
+                const wiki = wikiAr || (await window.searchWikipediaScience(q, 'en'));
+
+                const parts = [];
+                if (mathCalc && mathCalc.ok) {
+                    parts.push(`نتيجة حسابية (${exprMatch[0]}): ${mathCalc.value} [${mathCalc.engine}]`);
+                }
+                if (symbolic) {
+                    parts.push(`تحليل رمزي (nerdamer): ${symbolic}`);
+                }
+                if (wiki && wiki.extract) {
+                    parts.push(`موسوعة (${wiki.source} - ${wiki.title}): ${wiki.extract}`);
+                }
+                if (papers.length) {
+                    parts.push('أبحاث علمية (OpenAlex): ' + papers.map(p => `${p.title} (${p.year}, اقتباسات: ${p.citedBy})`).join(' | '));
+                }
+                return parts.join('\n');
+            };
+        })();
+    </script>
+
 </body>
 </html>
