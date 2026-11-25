@@ -3553,7 +3553,492 @@
                 const imgsHtml = valid.map(item =>
                     '<div style="page-break-inside:avoid;margin-bottom:18px;text-align:center;"><img src="' + item.url + '" style="max-width:100%;max-height:85vh;border:1px solid #cbd5e1;border-radius:6px;"><div style="font-size:12px;color:#475569;margin-top:6px;">' + item.name.replace(/</g, '&lt;') + '</div></div>'
                 ).join('');
-                printWin.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head><body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' + imgsHtml + '<script>window.onload=function(){window.print();};<\/script></body></html>');
+                printWin.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head><body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' + imgsHtml + '<script>window.onload=function(){window.print();};<\/script>
+    <!-- ==================== مزامنة عامة عبر Firebase: غرفة المذاكرة، المعارك، ومشاركة المشاريع ==================== -->
+    <script>
+    (function () {
+        const PUBLIC_ONLY_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyCibfAnFN0BACS9-OKf5wmals4KpKc_FKY",
+            authDomain: "smart-student-platform-f6eaf.firebaseapp.com",
+            databaseURL: "https://smart-student-platform-f6eaf-default-rtdb.firebaseio.com",
+            projectId: "smart-student-platform-f6eaf",
+            storageBucket: "smart-student-platform-f6eaf.firebasestorage.app",
+            messagingSenderId: "112366788977",
+            appId: "1:112366788977:web:9e3e00e2c53f6d3e4a96d0",
+            measurementId: "G-W99PJPCHQ8"
+        };
+
+        if (typeof firebase === "undefined" || !firebase.database) {
+            return;
+        }
+        if (!firebase.apps.length) {
+            firebase.initializeApp(PUBLIC_ONLY_FIREBASE_CONFIG);
+        }
+        const rtdb = firebase.database();
+
+        function cleanKey(raw, fallback) {
+            const s = String(raw || "")
+                .replace(/^#/, "")
+                .trim()
+                .replace(/[.#$/\[\]]/g, "_")
+                .slice(0, 64);
+            return s || fallback;
+        }
+
+        function getActor() {
+            const u = (typeof currentUser !== "undefined" && currentUser) ? currentUser : null;
+            let savedId = "";
+            try { savedId = localStorage.getItem("ssp_ff_player_id") || ""; } catch (_) {}
+            const id = cleanKey((u && u.id) || savedId || String(Math.floor(100000 + Math.random() * 900000)), "1001");
+            try { localStorage.setItem("ssp_ff_player_id", id); } catch (_) {}
+            const navName = document.getElementById("navUsername")?.textContent || "";
+            const name = String((u && u.username) || navName || "طالب").trim().slice(0, 40) || "طالب";
+            return { id, name };
+        }
+
+        // -------------------------------------------------------------------------
+        // 1) قسم غرفة المذاكرة العامة (#section-studyRoom): الحضور، الحالة، الدردشة، وبومودورو
+        // -------------------------------------------------------------------------
+        const STUDY_ROOM_ID = "general-study-room";
+        let studyChatInitialized = false;
+
+        function bindStudyRoomPublicSync() {
+            const studySection = document.getElementById("section-studyRoom");
+            if (!studySection) return;
+
+            const me = getActor();
+            const statusSelect = document.getElementById("myStudyStatus");
+            const currentStatus = (statusSelect && statusSelect.value) || "أراجع المحاضرات 📚";
+            const memberRef = rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${me.id}`);
+
+            memberRef.set({
+                id: me.id,
+                name: me.name,
+                status: currentStatus,
+                online: true,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            memberRef.onDisconnect().update({
+                online: false,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members`).on("value", (snap) => {
+                const active = [];
+                if (snap && snap.exists()) {
+                    snap.forEach((child) => {
+                        const v = child.val() || {};
+                        if (v.online !== false) {
+                            active.push({
+                                id: cleanKey(v.id || child.key, child.key),
+                                name: String(v.name || "طالب").slice(0, 40),
+                                status: String(v.status || "متصل").slice(0, 80)
+                            });
+                        }
+                    });
+                }
+                const countBadge = document.getElementById("studyActiveCountBadge");
+                if (countBadge) {
+                    countBadge.textContent = `🟢 ${active.length || 1} طلاب نشطون الآن`;
+                }
+                const listEl = document.getElementById("onlineStudentsList");
+                if (listEl) {
+                    listEl.innerHTML = "";
+                    active.forEach((m) => {
+                        const row = document.createElement("div");
+                        row.style.cssText = "padding:7px 8px; border-bottom:1px solid rgba(148,163,184,0.14); display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px;";
+                        const left = document.createElement("span");
+                        left.style.color = "#f8fafc";
+                        left.textContent = `${m.name} (#${m.id})`;
+                        const right = document.createElement("span");
+                        right.style.color = "#38bdf8";
+                        right.textContent = m.status;
+                        row.append(left, right);
+                        listEl.appendChild(row);
+                    });
+                }
+            });
+
+            if (statusSelect) {
+                statusSelect.addEventListener("change", () => {
+                    const actor = getActor();
+                    rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${actor.id}`).update({
+                        name: actor.name,
+                        status: statusSelect.value,
+                        online: true,
+                        updatedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                });
+            }
+
+            const chatBox = document.getElementById("studyChatMessages");
+            const chatInput = document.getElementById("studyChatInput");
+            const sendBtn = studySection.querySelector('button[onclick*="sendStudyMessage"]');
+
+            const pushPublicStudyMessage = function () {
+                if (!chatInput) return;
+                const text = String(chatInput.value || "").trim().slice(0, 500);
+                if (!text) return;
+                const actor = getActor();
+                rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/messages`).push().set({
+                    senderId: actor.id,
+                    senderName: actor.name,
+                    text,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                chatInput.value = "";
+            };
+
+            if (sendBtn) {
+                sendBtn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    pushPublicStudyMessage();
+                }, true);
+            }
+            if (chatInput) {
+                chatInput.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        pushPublicStudyMessage();
+                    }
+                }, true);
+            }
+
+            if (!studyChatInitialized && chatBox) {
+                studyChatInitialized = true;
+                rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/messages`).limitToLast(60).on("value", (snap) => {
+                    chatBox.innerHTML = "";
+                    if (!snap || !snap.exists()) return;
+                    snap.forEach((child) => {
+                        const m = child.val() || {};
+                        const item = document.createElement("div");
+                        item.style.cssText = "margin:6px 0; padding:8px 11px; border-radius:8px; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.2); font-size:13px; color:#e2e8f0;";
+                        const header = document.createElement("div");
+                        header.style.cssText = "font-size:11px; color:#38bdf8; font-weight:bold; margin-bottom:3px;";
+                        header.textContent = `${m.senderName || "طالب"} (#${m.senderId || "?"})`;
+                        const body = document.createElement("div");
+                        body.textContent = m.text || "";
+                        item.append(header, body);
+                        chatBox.appendChild(item);
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                });
+            }
+
+            rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/pomodoro`).on("value", (snap) => {
+                if (!snap || !snap.exists()) return;
+                const p = snap.val() || {};
+                const timerEl = document.getElementById("studyPomodoroTimer");
+                const modeBadge = document.getElementById("studyPomoModeBadge");
+                if (timerEl && typeof p.seconds === "number") {
+                    const mins = String(Math.floor(p.seconds / 60)).padStart(2, "0");
+                    const secs = String(p.seconds % 60).padStart(2, "0");
+                    timerEl.textContent = `${mins}:${secs}`;
+                }
+                if (modeBadge && p.modeLabel) {
+                    modeBadge.textContent = p.modeLabel;
+                }
+            });
+        }
+
+        // -------------------------------------------------------------------------
+        // 2) قسم المعارك العامة (#section-battleArena): الغرف العامة ومزامنة المعارك
+        // -------------------------------------------------------------------------
+        function ensurePublicBattlesBar() {
+            const classicPanel = document.getElementById("classicBattlePanel");
+            if (!classicPanel || document.getElementById("publicBattlesRoomsBar")) return;
+
+            const bar = document.createElement("div");
+            bar.id = "publicBattlesRoomsBar";
+            bar.style.cssText = "margin:10px 0 14px; padding:10px 12px; border-radius:10px; background:rgba(15,23,42,0.85); border:1px solid rgba(139,92,246,0.35); display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between;";
+
+            const title = document.createElement("span");
+            title.style.cssText = "font-size:12px; font-weight:bold; color:#c4b5fd;";
+            title.textContent = "🌐 غرف المعارك العامة المباشرة:";
+
+            const listWrap = document.createElement("div");
+            listWrap.id = "publicBattlesRoomsList";
+            listWrap.style.cssText = "display:flex; flex-wrap:wrap; gap:6px; align-items:center;";
+
+            bar.append(title, listWrap);
+            const banner = classicPanel.querySelector(".battle-room-banner");
+            if (banner) {
+                classicPanel.insertBefore(bar, banner);
+            } else {
+                classicPanel.prepend(bar);
+            }
+        }
+
+        function bindBattlesPublicSync() {
+            const battleSection = document.getElementById("section-battleArena");
+            if (!battleSection) return;
+            ensurePublicBattlesBar();
+
+            const publishCurrentBattleRoom = () => {
+                const actor = getActor();
+                const roomName = (document.getElementById("battleRoomNameDisplay")?.textContent || "غرفة التحدي السريع").trim();
+                const rawCode = (document.getElementById("battleRoomCodeBadge")?.textContent || "ROOM-101").trim();
+                const code = cleanKey(rawCode, "ROOM-101");
+                const rounds = (document.getElementById("battleRoundsSelect")?.value || "3");
+                const domain = (document.getElementById("battleDomainSelect")?.value || "programming");
+                const scoreA = (document.getElementById("teamAScoreBadge")?.textContent || "0 نقطة").trim();
+                const scoreB = (document.getElementById("teamBScoreBadge")?.textContent || "0 نقطة").trim();
+
+                rtdb.ref(`public/battles/${code}`).update({
+                    roomCode: code,
+                    roomName,
+                    rounds,
+                    domain,
+                    scoreA,
+                    scoreB,
+                    hostId: actor.id,
+                    hostName: actor.name,
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            };
+
+            const origStartBattle = window.startNewBattle;
+            if (typeof origStartBattle === "function" && !origStartBattle.__publicWrapped) {
+                const wrappedStart = function (...args) {
+                    const res = origStartBattle.apply(this, args);
+                    setTimeout(publishCurrentBattleRoom, 120);
+                    return res;
+                };
+                wrappedStart.__publicWrapped = true;
+                window.startNewBattle = wrappedStart;
+            }
+
+            const origSubmitRoom = window.submitCreateBattleRoom;
+            if (typeof origSubmitRoom === "function" && !origSubmitRoom.__publicWrapped) {
+                const wrappedSubmitRoom = function (...args) {
+                    const res = origSubmitRoom.apply(this, args);
+                    setTimeout(publishCurrentBattleRoom, 150);
+                    return res;
+                };
+                wrappedSubmitRoom.__publicWrapped = true;
+                window.submitCreateBattleRoom = wrappedSubmitRoom;
+            }
+
+            rtdb.ref("public/battles").on("value", (snap) => {
+                const listWrap = document.getElementById("publicBattlesRoomsList");
+                if (!listWrap) return;
+                listWrap.innerHTML = "";
+
+                const rooms = [];
+                if (snap && snap.exists()) {
+                    snap.forEach((child) => {
+                        rooms.push({ key: child.key, ...(child.val() || {}) });
+                    });
+                }
+                rooms.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+                if (!rooms.length) {
+                    const empty = document.createElement("span");
+                    empty.style.cssText = "font-size:11px; color:#94a3b8;";
+                    empty.textContent = "لا توجد غرف عامة نشطة حالياً — ابدأ معركة لإنشاء غرفة عامة.";
+                    listWrap.appendChild(empty);
+                    return;
+                }
+
+                rooms.slice(0, 8).forEach((r) => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.style.cssText = "background:rgba(139,92,246,0.16); color:#ede9fe; border:1px solid rgba(139,92,246,0.45); padding:5px 10px; border-radius:8px; cursor:pointer; font-size:11px; font-weight:bold;";
+                    btn.textContent = `${r.roomName || "غرفة"} (#${r.roomCode || r.key}) • ${r.scoreA || "0"} vs ${r.scoreB || "0"}`;
+                    btn.onclick = () => {
+                        const nameEl = document.getElementById("battleRoomNameDisplay");
+                        const codeEl = document.getElementById("battleRoomCodeBadge");
+                        if (nameEl && r.roomName) nameEl.textContent = r.roomName;
+                        if (codeEl) codeEl.textContent = "#" + (r.roomCode || r.key);
+                        if (typeof showToast === "function") {
+                            showToast("تم الانضمام إلى غرفة المعركة العامة #" + (r.roomCode || r.key));
+                        }
+                    };
+                    listWrap.appendChild(btn);
+                });
+            });
+        }
+
+        // -------------------------------------------------------------------------
+        // 3) قسم مشاركة مشاريع العامة (#section-sharing / #sharedProjectsFeed)
+        // -------------------------------------------------------------------------
+        function renderPublicProjectsFeed(projectsList) {
+            const feed = document.getElementById("sharedProjectsFeed");
+            if (!feed) return;
+            const me = getActor();
+            feed.innerHTML = "";
+
+            if (!Array.isArray(projectsList) || !projectsList.length) {
+                const emptyBox = document.createElement("div");
+                emptyBox.style.cssText = "padding:20px; text-align:center; border:1px dashed var(--border); border-radius:10px; color:#94a3b8; font-size:13px;";
+                emptyBox.textContent = "لا توجد مشاريع عامة منشورة بعد. اضغط على (🚀 نشر مشروع جديد) لمشاركة مشروعك مع الجميع.";
+                feed.appendChild(emptyBox);
+                return;
+            }
+
+            projectsList.forEach((proj) => {
+                const card = document.createElement("div");
+                card.style.cssText = "background:var(--bg-dark); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px;";
+
+                const topRow = document.createElement("div");
+                topRow.style.cssText = "display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:8px;";
+
+                const titleEl = document.createElement("h4");
+                titleEl.style.cssText = "margin:0; color:#fff; font-size:16px;";
+                titleEl.textContent = proj.title || "مشروع طلابي";
+
+                const metaEl = document.createElement("span");
+                metaEl.style.cssText = "font-size:11px; color:#38bdf8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.35); padding:3px 9px; border-radius:999px;";
+                metaEl.textContent = `${proj.domain || "عام"} • بواسطة ${proj.authorName || "طالب"} (#${proj.authorId || "?"})`;
+
+                topRow.append(titleEl, metaEl);
+
+                const contentEl = document.createElement("pre");
+                contentEl.style.cssText = "margin:10px 0; padding:10px; border-radius:8px; background:#020617; color:#e2e8f0; font-size:12px; white-space:pre-wrap; word-break:break-word; border:1px solid rgba(148,163,184,0.2);";
+                contentEl.textContent = proj.content || "";
+
+                const reactions = proj.reactions || {};
+                const myReaction = reactions[me.id] || null;
+                let likeCount = 0;
+                let dislikeCount = 0;
+                Object.keys(reactions).forEach((uid) => {
+                    if (reactions[uid] === "like") likeCount++;
+                    if (reactions[uid] === "dislike") dislikeCount++;
+                });
+
+                const actionsRow = document.createElement("div");
+                actionsRow.style.cssText = "display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;";
+
+                const likeBtn = document.createElement("button");
+                likeBtn.type = "button";
+                likeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "like" ? "#10b981" : "var(--border)"}; background:${myReaction === "like" ? "rgba(16,185,129,0.2)" : "var(--card-bg)"}; color:#fff;`;
+                likeBtn.textContent = `👍 إعجاب (${likeCount})`;
+                likeBtn.onclick = async () => {
+                    const next = myReaction === "like" ? null : "like";
+                    await rtdb.ref(`public/sharedProjects/${proj.id}/reactions/${me.id}`).set(next);
+                };
+
+                const dislikeBtn = document.createElement("button");
+                dislikeBtn.type = "button";
+                dislikeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "dislike" ? "#ef4444" : "var(--border)"}; background:${myReaction === "dislike" ? "rgba(239,68,68,0.2)" : "var(--card-bg)"}; color:#fff;`;
+                dislikeBtn.textContent = `👎 ديسلايك (${dislikeCount})`;
+                dislikeBtn.onclick = async () => {
+                    const next = myReaction === "dislike" ? null : "dislike";
+                    await rtdb.ref(`public/sharedProjects/${proj.id}/reactions/${me.id}`).set(next);
+                };
+
+                actionsRow.append(likeBtn, dislikeBtn);
+
+                const commentsWrap = document.createElement("div");
+                commentsWrap.style.cssText = "margin-top:12px; padding-top:10px; border-top:1px solid var(--border);";
+
+                const commentsList = proj.comments ? Object.keys(proj.comments).map((k) => proj.comments[k]) : [];
+                commentsList.forEach((c) => {
+                    const cRow = document.createElement("div");
+                    cRow.style.cssText = "font-size:12px; color:#cbd5e1; padding:4px 0;";
+                    cRow.textContent = `💬 ${c.authorName || "طالب"}: ${c.text || ""}`;
+                    commentsWrap.appendChild(cRow);
+                });
+
+                const commentForm = document.createElement("div");
+                commentForm.style.cssText = "display:flex; gap:6px; margin-top:8px;";
+                const cInput = document.createElement("input");
+                cInput.type = "text";
+                cInput.placeholder = "أضف تعليقاً عاماً على المشروع...";
+                cInput.style.cssText = "flex:1; padding:7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:#fff; font-size:12px;";
+                const cBtn = document.createElement("button");
+                cBtn.type = "button";
+                cBtn.textContent = "تعليق";
+                cBtn.style.cssText = "padding:7px 12px; border-radius:7px; border:none; background:var(--primary); color:#fff; font-size:12px; font-weight:bold; cursor:pointer;";
+                const submitComment = async () => {
+                    const txt = String(cInput.value || "").trim().slice(0, 300);
+                    if (!txt) return;
+                    const actor = getActor();
+                    await rtdb.ref(`public/sharedProjects/${proj.id}/comments`).push().set({
+                        authorId: actor.id,
+                        authorName: actor.name,
+                        text: txt,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    cInput.value = "";
+                };
+                cBtn.onclick = submitComment;
+                cInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitComment();
+                    }
+                });
+
+                commentForm.append(cInput, cBtn);
+                commentsWrap.appendChild(commentForm);
+
+                card.append(topRow, contentEl, actionsRow, commentsWrap);
+                feed.appendChild(card);
+            });
+        }
+
+        function bindSharingPublicSync() {
+            const sharingSection = document.getElementById("section-sharing");
+            if (!sharingSection) return;
+
+            window.submitSharedProject = async function () {
+                const titleInput = document.getElementById("shareProjTitle");
+                const domainSelect = document.getElementById("shareProjDomain");
+                const contentTextarea = document.getElementById("shareProjContent");
+
+                const title = String(titleInput ? titleInput.value : "").trim().slice(0, 120);
+                const domain = String(domainSelect ? domainSelect.value : "عام").trim().slice(0, 50);
+                const content = String(contentTextarea ? contentTextarea.value : "").trim().slice(0, 3000);
+
+                if (!title || !content) {
+                    if (typeof showToast === "function") {
+                        showToast("يرجى إدخال عنوان المشروع ومحتواه قبل النشر");
+                    }
+                    return;
+                }
+
+                const actor = getActor();
+                const newRef = rtdb.ref("public/sharedProjects").push();
+                await newRef.set({
+                    id: newRef.key,
+                    title,
+                    domain,
+                    content,
+                    authorId: actor.id,
+                    authorName: actor.name,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                if (titleInput) titleInput.value = "";
+                if (contentTextarea) contentTextarea.value = "";
+                if (typeof closeShareModal === "function") closeShareModal();
+                if (typeof showToast === "function") showToast("تم نشر المشروع بشكل عام عبر Firebase 🚀");
+            };
+
+            rtdb.ref("public/sharedProjects").on("value", (snap) => {
+                const items = [];
+                if (snap && snap.exists()) {
+                    snap.forEach((child) => {
+                        items.push({ id: child.key, ...(child.val() || {}) });
+                    });
+                }
+                items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                renderPublicProjectsFeed(items);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            bindStudyRoomPublicSync();
+            bindBattlesPublicSync();
+            bindSharingPublicSync();
+        });
+    })();
+    </script>
+
+</body></html>');
                 printWin.document.close();
                 setPdfStatus('تم فتح صفحة ' + valid.length + ' صورة جاهزة للحفظ كـ PDF عبر الطباعة.');
             };
