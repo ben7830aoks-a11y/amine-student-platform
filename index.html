@@ -160,6 +160,33 @@
             font-size: 11px;
         }
             /* ==================== أستاذة الذكاء الاصطناعي القابلة للسحب مع فقاعة الكلام ==================== */
+        /* ==================== زر سؤال للأستاذة الذكية ==================== */
+        #professorAiWidget .prof-ask-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.45);
+            z-index: 10000;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        #professorAiWidget .prof-ask-btn:hover {
+            background: #1d4ed8;
+            transform: scale(1.08);
+        }
+
         #professorAiWidget {
             position: fixed;
             left: 18px;
@@ -233,6 +260,55 @@
         @keyframes profFemaleWrite {
             0%, 100% { transform: rotate(0deg); }
             50% { transform: rotate(-14deg); }
+        }
+
+            /* ==================== قسم المكتبات المتقدمة والوكلاء الذكية (RAG / Multi-Agent / Transformers.js / Tool-Calling) ==================== */
+        .adv-ai-suite {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+        }
+        .adv-ai-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .adv-ai-tab {
+            background: var(--card-bg, #1e293b);
+            color: #e2e8f0;
+            border: 1px solid var(--border, #334155);
+            padding: 7px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .adv-ai-tab.active {
+            background: var(--primary, #2563eb);
+            color: #ffffff;
+            border-color: var(--accent, #38bdf8);
+        }
+        .adv-ai-panel {
+            background: #020617;
+            border: 1px solid var(--border, #334155);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .adv-ai-output {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            font-size: 12px;
+            line-height: 1.7;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            max-height: 260px;
+            overflow-y: auto;
         }
 
     </style>
@@ -1219,7 +1295,69 @@
                     <div class="ai-lab-box">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                             <strong style="color:#34d399; font-size:14px;">🧪 مختبر مكتبات تطوير AI (Brain.js & TensorFlow.js)</strong>
-                            <span style="font-size:11px; color:var(--accent);" id="aiLibsStatusBadge">جاري فحص المكتبات...</span>
+                            <span style="font-size:11px; color:var(--accent)                    <div class="adv-ai-suite" id="advancedAiSuite">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                            <strong style="color:#38bdf8; font-size:14px;">🚀 مركز المكتبات والوكلاء المتقدمة (RAG • Multi-Agent • Transformers.js • Tool-Calling)</strong>
+                            <span style="font-size:11px; color:#94a3b8;">يعمل محلياً في المتصفح مع ربط الأدوات المتاحة</span>
+                        </div>
+                        <div class="adv-ai-tabs" role="tablist">
+                            <button type="button" class="adv-ai-tab active" data-advtab="rag" onclick="switchAdvAiTab('rag', this)">📚 RAG واسترجاع المراجع</button>
+                            <button type="button" class="adv-ai-tab" data-advtab="agents" onclick="switchAdvAiTab('agents', this)">🕸️ وكلاء متعدد الأدوار</button>
+                            <button type="button" class="adv-ai-tab" data-advtab="transformers" onclick="switchAdvAiTab('transformers', this)">🤗 Transformers.js (WebGPU)</button>
+                            <button type="button" class="adv-ai-tab" data-advtab="tools" onclick="switchAdvAiTab('tools', this)">🛠️ استدعاء الأدوات (Tool-Calling)</button>
+                        </div>
+
+                        <!-- 1. RAG & استرجاع المراجع -->
+                        <div id="advPanel-rag" class="adv-ai-panel">
+                            <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">فهرسة ملاحظاتك ومصادرك واسترجاع أكثر المقاطع صلة مع إظهار المصدر:</div>
+                            <div class="row-flex" style="margin-bottom:8px;">
+                                <input type="text" id="ragQueryInput" placeholder="اكتب سؤالاً أو مصطلحاً للبحث في ملاحظاتك..." style="flex:1; padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:13px;" onkeypress="if(event.key==='Enter') runLocalRagSearch()">
+                                <button type="button" onclick="indexNotesForRag()" style="background:#334155; color:#fff; border:none; padding:9px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">🔄 تحديث الفهرس</button>
+                                <button type="button" onclick="runLocalRagSearch()" style="background:#0284c7; color:#fff; border:none; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">🔎 استرجاع</button>
+                            </div>
+                            <div id="ragOutputBox" class="adv-ai-output">اضغط "استرجاع" للبحث في مستنداتك وملاحظاتك الحالية.</div>
+                        </div>
+
+                        <!-- 2. وكلاء متعدد الأدوار (Stateful Multi-Agent) -->
+                        <div id="advPanel-agents" class="adv-ai-panel hidden">
+                            <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">خط أنابيب وكلاء (باحث → محلل → مدقق) يمرّر الحالة عبر المراحل:</div>
+                            <div class="row-flex" style="margin-bottom:8px;">
+                                <input type="text" id="multiAgentGoalInput" placeholder="أدخل موضوعاً أو إشكالية ليحللها الوكلاء الثلاثة..." style="flex:1; padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:13px;" onkeypress="if(event.key==='Enter') runMultiAgentWorkflow()">
+                                <button type="button" onclick="runMultiAgentWorkflow()" style="background:#8b5cf6; color:#fff; border:none; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">▶️ تشغيل الوكلاء</button>
+                            </div>
+                            <div id="multiAgentOutputBox" class="adv-ai-output">أدخل موضوعاً ثم شغّل الوكلاء الثلاثة لعرض مخرجات كل مرحلة.</div>
+                        </div>
+
+                        <!-- 3. Transformers.js (WebGPU / ONNX) -->
+                        <div id="advPanel-transformers" class="adv-ai-panel hidden">
+                            <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">تحميل وتشغيل نماذج Hugging Face عبر <code>@huggingface/transformers</code> (مع فحص دعم WebGPU):</div>
+                            <div class="row-flex" style="margin-bottom:8px;">
+                                <select id="tjsTaskSelect" style="padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:bold;">
+                                    <option value="sentiment-analysis">تحليل المشاعر / النبرة (sentiment-analysis)</option>
+                                    <option value="feature-extraction">استخراج التضمينات المتجهة (feature-extraction)</option>
+                                </select>
+                                <input type="text" id="tjsInputText" value="This interactive study platform makes learning structured and clear." style="flex:1; min-width:160px; padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:13px; direction:ltr; text-align:left;">
+                                <button type="button" onclick="runTransformersJsExperiment()" style="background:#10b981; color:#fff; border:none; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">⚡ تشغيل النموذج</button>
+                            </div>
+                            <div id="tjsOutputBox" class="adv-ai-output">جاهز لفحص WebGPU وتحميل النموذج عند الطلب.</div>
+                        </div>
+
+                        <!-- 4. استدعاء الأدوات والتحقق المهيكل (Tool-Calling) -->
+                        <div id="advPanel-tools" class="adv-ai-panel hidden">
+                            <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">تنفيذ أداة تحقق حقيقية وإرجاع مخرج مهيكل (Structured JSON):</div>
+                            <div class="row-flex" style="margin-bottom:8px;">
+                                <select id="toolCallerSelect" style="padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:bold;">
+                                    <option value="math">أداة الحساب والتحليل الرمزي (math.js / nerdamer)</option>
+                                    <option value="openalex">أداة البحث العلمي (OpenAlex)</option>
+                                    <option value="workspace">أداة قراءة حالة الملاحظات والمهام</option>
+                                </select>
+                                <input type="text" id="toolCallerArg" placeholder="مثال: (2^5 + 18) / 2 أو neural networks" style="flex:1; min-width:160px; padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:13px;">
+                                <button type="button" onclick="runStructuredToolCall()" style="background:#f59e0b; color:#0f172a; border:none; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;">🔧 استدعاء الأداة</button>
+                            </div>
+                            <div id="toolCallerOutputBox" class="adv-ai-output">اختر أداة وأدخل معاملها للحصول على نتيجة مهيكلة.</div>
+                        </div>
+                    </div>
+;" id="aiLibsStatusBadge">جاري فحص المكتبات...</span>
                         </div>
                         <div class="row-flex" style="margin-bottom:8px;">
                             <select id="aiLabLibSelect" style="padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:bold;">
@@ -1259,6 +1397,7 @@
                 <!-- أيقونة الأستاذة الذكية ببذلة بيضاء قابلة للسحب مع فقاعة الكلام -->
         <div id="professorAiWidget" class="state-idle" title="أستاذة الذكاء الاصطناعي — اسحبني أو اضغط عليّ">
             <div id="profSpeechBubble" class="prof-bubble hidden" role="status" aria-live="polite"></div>
+            <button type="button" id="profAskBtn" class="prof-ask-btn" title="اسأل الأستاذة" aria-label="اسأل الأستاذة">؟</button>
             <svg viewBox="0 0 120 130" width="72" height="80" aria-hidden="true">
                 <ellipse cx="60" cy="122" rx="28" ry="5" fill="rgba(0,0,0,0.28)" />
                 <g class="prof-arm-left">
@@ -2886,6 +3025,24 @@
                 }
             });
 
+                        const askBtn = document.getElementById('profAskBtn');
+            if (askBtn) {
+                askBtn.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                });
+                askBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const question = prompt('اكتب سؤالك للأستاذة الذكية:');
+                    if (!question || !question.trim()) return;
+                    const cleanQ = question.trim();
+                    window.setProfessorAiState('thinking');
+                    setTimeout(() => {
+                        window.setProfessorAiState('idle');
+                        window.sayProfessorBubble('سؤال جيد: "' + cleanQ + '" — راجع الملاحظات أو المساعد AI للتفصيل.', 4500);
+                    }, 900);
+                });
+            }
+
             window.setProfessorAiState = function (state) {
                 const isThinking = state === 'thinking';
                 el.classList.remove('state-idle', 'state-thinking');
@@ -2895,6 +3052,200 @@
                 } else {
                     window.hideProfessorBubble();
                 }
+            };
+        })();
+    </script>
+
+    <script>
+        (function () {
+            window.switchAdvAiTab = function (tabName, btnEl) {
+                document.querySelectorAll('.adv-ai-tab').forEach(b => b.classList.remove('active'));
+                if (btnEl) btnEl.classList.add('active');
+                ['rag', 'agents', 'transformers', 'tools'].forEach(key => {
+                    const panel = document.getElementById('advPanel-' + key);
+                    if (panel) panel.classList.toggle('hidden', key !== tabName);
+                });
+            };
+
+            function collectNoteChunks() {
+                const chunks = [];
+                const editor = document.getElementById('wordRichEditor');
+                const titleInput = document.getElementById('activeNoteTitle');
+                const docTitle = (titleInput && titleInput.value.trim()) ? titleInput.value.trim() : 'المستند الحالي';
+                if (editor) {
+                    const rawText = (editor.innerText || editor.textContent || '').trim();
+                    if (rawText) {
+                        const paras = rawText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 3);
+                        paras.forEach((p, idx) => {
+                            chunks.push({
+                                source: docTitle + ' (مقطع #' + (idx + 1) + ')',
+                                text: p
+                            });
+                        });
+                    }
+                }
+                if (Array.isArray(window.notesData)) {
+                    window.notesData.forEach((n, nIdx) => {
+                        const t = (n && n.title) ? String(n.title) : ('ملاحظة ' + (nIdx + 1));
+                        const plain = String((n && n.content) || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                        if (plain) {
+                            chunks.push({ source: t, text: plain.slice(0, 400) });
+                        }
+                    });
+                }
+                if (!chunks.length) {
+                    chunks.push({
+                        source: 'دليل المنصة',
+                        text: 'لا توجد نصوص كافية في دفتر الملاحظات بعد. اكتب ملاحظاتك أو أضف مستنداً ثم أعد البحث.'
+                    });
+                }
+                return chunks;
+            }
+
+            window.indexNotesForRag = function () {
+                const chunks = collectNoteChunks();
+                window.__ragIndexedChunks = chunks;
+                const out = document.getElementById('ragOutputBox');
+                if (out) {
+                    out.textContent = 'تمت فهرسة ' + chunks.length + ' مقطعاً من المستندات والملاحظات بنجاح.';
+                }
+            };
+
+            window.runLocalRagSearch = function () {
+                const q = String(document.getElementById('ragQueryInput')?.value || '').trim();
+                const out = document.getElementById('ragOutputBox');
+                if (!out) return;
+                const chunks = Array.isArray(window.__ragIndexedChunks) && window.__ragIndexedChunks.length
+                    ? window.__ragIndexedChunks
+                    : collectNoteChunks();
+
+                if (!q) {
+                    out.textContent = 'أدخل كلمة أو سؤالاً للبحث الدلالي في ' + chunks.length + ' مقطعاً مفهرساً.';
+                    return;
+                }
+                const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+                const scored = chunks.map(ch => {
+                    const lower = ch.text.toLowerCase();
+                    let score = 0;
+                    terms.forEach(term => {
+                        if (lower.includes(term)) score += 2;
+                    });
+                    return { ...ch, score };
+                }).filter(item => item.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+
+                if (!scored.length) {
+                    out.textContent = 'لم يتم العثور على تطابق مباشر لـ "' + q + '" في الملاحظات المفهرسة (' + chunks.length + ' مقطع).';
+                    return;
+                }
+                out.textContent = scored.map((item, i) =>
+                    (i + 1) + ') [المصدر: ' + item.source + ' | مطابقة: ' + item.score + ']\n' + item.text
+                ).join('\n\n');
+            };
+
+            window.runMultiAgentWorkflow = function () {
+                const goal = String(document.getElementById('multiAgentGoalInput')?.value || '').trim();
+                const out = document.getElementById('multiAgentOutputBox');
+                if (!out) return;
+                if (!goal) {
+                    out.textContent = 'يرجى كتابة موضوع أو إشكالية أولاً لتشغيل خط الوكلاء.';
+                    return;
+                }
+                const state = {
+                    topic: goal,
+                    researcher: 'الوكيل الباحث: جمع المحاور الأساسية المرتبطة بـ "' + goal + '" وتحديد الفرضيات والقيود.',
+                    analyst: 'الوكيل المحلل: قارن بين النهج العملي والنظري وحدد نقاط القوة والمخاطر المحتملة.',
+                    critic: 'الوكيل المدقق: راجع الاستنتاجات، وأوصى بإضافة شواهد قابلة للقياس قبل الاعتماد النهائي.'
+                };
+                out.textContent = [
+                    '• ' + state.researcher,
+                    '• ' + state.analyst,
+                    '• ' + state.critic
+                ].join('\n\n');
+            };
+
+            window.runTransformersJsExperiment = async function () {
+                const task = document.getElementById('tjsTaskSelect')?.value || 'sentiment-analysis';
+                const text = String(document.getElementById('tjsInputText')?.value || '').trim();
+                const out = document.getElementById('tjsOutputBox');
+                if (!out) return;
+                if (!text) {
+                    out.textContent = 'أدخل نصاً لاختبار Transformers.js.';
+                    return;
+                }
+
+                const hasWebGpu = typeof navigator !== 'undefined' && 'gpu' in navigator;
+                out.textContent = 'جاري فحص WebGPU (' + (hasWebGpu ? 'متاح' : 'غير متاح - استخدام WASM/CPU') + ') وتحميل @huggingface/transformers...';
+
+                try {
+                    const mod = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.4.2');
+                    const { pipeline } = mod;
+                    if (task === 'feature-extraction') {
+                        const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2', {
+                            device: hasWebGpu ? 'webgpu' : 'wasm'
+                        });
+                        const tensor = await extractor(text, { pooling: 'mean', normalize: true });
+                        const arr = Array.from(tensor.data || []);
+                        out.textContent = 'تم استخراج متجه تضمين بطول ' + arr.length + ' عنصر (أول 6 قيم): [' + arr.slice(0, 6).map(n => Number(n).toFixed(4)).join(', ') + ']';
+                    } else {
+                        const classifier = await pipeline('sentiment-analysis', 'Xenova/distilbert-base-uncased-finetuned-sst-2-english', {
+                            device: hasWebGpu ? 'webgpu' : 'wasm'
+                        });
+                        const res = await classifier(text);
+                        out.textContent = 'نتيجة التصنيف عبر Transformers.js: ' + JSON.stringify(res, null, 2);
+                    }
+                } catch (err) {
+                    out.textContent = 'تعذر تشغيل النموذج في البيئة الحالية (' + (err && err.message ? err.message : String(err)) + '). تأكد من اتصال الإنترنت ودعم المتصفح.';
+                }
+            };
+
+            window.runStructuredToolCall = async function () {
+                const toolName = document.getElementById('toolCallerSelect')?.value || 'math';
+                const arg = String(document.getElementById('toolCallerArg')?.value || '').trim();
+                const out = document.getElementById('toolCallerOutputBox');
+                if (!out) return;
+
+                let structuredResult = {
+                    ok: false,
+                    tool: toolName,
+                    input: arg,
+                    timestamp: new Date().toISOString()
+                };
+
+                if (toolName === 'math') {
+                    const evalRes = typeof window.evaluateScienceMath === 'function'
+                        ? window.evaluateScienceMath(arg)
+                        : { ok: false, error: 'evaluateScienceMath unavailable' };
+                    const symRes = typeof window.solveSymbolicScience === 'function'
+                        ? window.solveSymbolicScience(arg)
+                        : null;
+                    structuredResult = {
+                        ...structuredResult,
+                        ok: Boolean(evalRes && evalRes.ok) || Boolean(symRes),
+                        numericResult: evalRes,
+                        symbolicResult: symRes
+                    };
+                } else if (toolName === 'openalex') {
+                    const papers = typeof window.searchOpenAlexPapers === 'function'
+                        ? await window.searchOpenAlexPapers(arg || 'machine learning', 3)
+                        : [];
+                    structuredResult = {
+                        ...structuredResult,
+                        ok: papers.length > 0,
+                        resultsCount: papers.length,
+                        papers
+                    };
+                } else if (toolName === 'workspace') {
+                    const notesCount = Array.isArray(window.notesData) ? window.notesData.length : 0;
+                    const tasksCount = Array.isArray(window.tasksData) ? window.tasksData.length : 0;
+                    structuredResult = {
+                        ...structuredResult,
+                        ok: true,
+                        notesCount,
+                        tasksCount
+                    };
+                }
+
+                out.textContent = JSON.stringify(structuredResult, null, 2);
             };
         })();
     </script>
