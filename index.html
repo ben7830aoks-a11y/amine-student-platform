@@ -159,7 +159,42 @@
             border-radius: 999px;
             font-size: 11px;
         }
-            /* ==================== أيقونة الأستاذ بكامل جسده مع تطوير الغرافيك والتفاعل ==================== */
+        /* مقابض التحكم بأبعاد الصور من اليمين واليسار */
+        .note-inserted-image-block {
+            user-select: none;
+            touch-action: none;
+        }
+        .img-side-resize-handle {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 46px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, #38bdf8, #2563eb);
+            color: #ffffff;
+            border: 2px solid #ffffff;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: ew-resize;
+            z-index: 15;
+            touch-action: none;
+        }
+        .img-side-resize-handle:hover {
+            transform: translateY(-50%) scale(1.1);
+            background: linear-gradient(180deg, #10b981, #059669);
+        }
+        .img-side-resize-handle.handle-left {
+            left: -10px;
+        }
+        .img-side-resize-handle.handle-right {
+            right: -10px;
+        }
+        /* ==================== أيقونة الأستاذ بكامل جسده مع تطوير الغرافيك والتفاعل ==================== */
         #professorAiWidget .prof-ask-btn {
             position: absolute;
             top: -8px;
@@ -288,7 +323,7 @@
             50% { transform: translateY(1px); }
         }
 
-            /* ==================== قسم المكتبات المتقدمة والوكلاء الذكية (RAG / Multi-Agent / Transformers.js / Tool-Calling) ==================== */
+        /* ==================== قسم المكتبات المتقدمة والوكلاء الذكية ==================== */
         .adv-ai-suite {
             margin-top: 16px;
             padding: 14px;
@@ -323,7 +358,6 @@
             border-radius: 10px;
             padding: 12px;
         }
-        /* ==================== قسم معالجات PDF داخل بناء مشاريع ==================== */
         .pdf-tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -360,7 +394,6 @@
             margin-top: 12px;
             line-height: 1.6;
         }
-
         .adv-ai-output {
             margin-top: 10px;
             padding: 10px 12px;
@@ -374,7 +407,6 @@
             max-height: 260px;
             overflow-y: auto;
         }
-
     </style>
 </head>
 <body>
@@ -492,7 +524,6 @@
         </aside>
 
         <main class="main-area">
-            <!-- إشعار دعوة واردة حية عبر قاعدة البيانات المجانية -->
             <div id="incomingInviteBanner" class="incoming-invite-banner hidden">
                 <div id="incomingInviteText" style="font-size:13px; color:#f3e8ff; font-weight:bold;">📩 وصلتك دعوة انضمام</div>
                 <div style="display:flex; gap:8px;">
@@ -620,7 +651,7 @@
                     <div class="card" style="padding:14px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
                             <h3 id="noteCardTitle" style="margin:0;">📝 محرر المستندات والملاحظات (Word Studio)</h3>
-                            <span style="font-size:12px; color:#94a3b8;">💡 ظلل أي نص داخل الصفحة ثم اضغط <strong>🌐 ترجمة المحدد</strong> — أو أضف معادلة <strong>∑ LaTeX</strong></span>
+                            <span style="font-size:12px; color:#94a3b8;">💡 تحكم بأبعاد الصورة مباشرة من <strong>اليمين واليسار</strong> (20%–100%) — أو أضف معادلة <strong>∑ LaTeX</strong></span>
                         </div>
                         <div class="notes-grid">
                             <div class="note-sidebar-panel">
@@ -633,7 +664,6 @@
                             </div>
 
                             <div class="word-workspace-shell">
-                                <!-- شريط عنوان المستند العلوي -->
                                 <div class="word-title-bar">
                                     <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:220px;">
                                         <span style="font-size:16px;">📘</span>
@@ -654,7 +684,6 @@
                                     </div>
                                 </div>
 
-                                <!-- شريط الرموز والأدوات العلوي المنظم -->
                                 <div class="top-symbols-strip" aria-label="شريط الرموز والأدوات في الأعلى">
                                     <div class="top-symbols-group">
                                         <button type="button" class="word-tool-btn" onmousedown="event.preventDefault()" onclick="insertSymbolIntoNote('π')">π</button>
@@ -676,7 +705,6 @@
                                     </div>
                                 </div>
 
-                                <!-- تبويبات الشريط (Ribbon Tabs) -->
                                 <div class="word-ribbon-tabs">
                                     <div class="word-ribbon-tab-group">
                                         <button type="button" class="word-ribbon-tab active" id="wordTabHomeBtn" onclick="switchWordRibbonTab('home')">الشريط الرئيسي</button>
@@ -693,7 +721,6 @@
                                     </div>
                                 </div>
 
-                                <!-- شريط أدوات: الشريط الرئيسي -->
                                 <div id="wordRibbon-home" class="word-ribbon-toolbar">
                                     <div class="word-tool-group">
                                         <button type="button" class="word-tool-btn" onmousedown="event.preventDefault()" onclick="execWordCmd('undo')" title="تراجع">↩️</button>
@@ -749,7 +776,6 @@
                                     </div>
                                 </div>
 
-                                <!-- شريط أدوات: إدراج -->
                                 <div id="wordRibbon-insert" class="word-ribbon-toolbar hidden">
                                     <div class="word-tool-group">
                                         <input type="file" id="noteInsertImageInput" accept="image/*" multiple class="hidden" onchange="handleNoteImageFilesSelected(event)">
@@ -773,7 +799,6 @@
                                     </div>
                                 </div>
 
-                                <!-- شريط أدوات: تخطيط وتصدير -->
                                 <div id="wordRibbon-layout" class="word-ribbon-toolbar hidden">
                                     <div class="word-tool-group">
                                         <span style="font-size:11px;color:#94a3b8;">لون الورقة:</span>
@@ -793,7 +818,6 @@
                                     </div>
                                 </div>
 
-                                <!-- مساحة ورقة المستند (A4 Desk) -->
                                 <div class="word-desk-canvas">
                                     <div id="notePageSheet" class="note-page-sheet">
                                         <div class="word-page-header-meta">
@@ -804,7 +828,6 @@
                                     </div>
                                 </div>
 
-                                <!-- شريط الحالة السفلي لبرنامج Word -->
                                 <div class="word-status-bar">
                                     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                                         <span id="noteStatsCounter">الكلمات: 0 | الحروف: 0</span>
@@ -863,149 +886,148 @@
                         </div>
                     </div>
                 </div>
+
                 <!-- تحويل صور إلى فيديوهات -->
                 <div id="subtab-img2vid" class="subtab-content hidden">
-<div class="project-builder-hub" id="project-builder-section">
-    <div class="hub-top">
-      <div>
-        <h1>بناء مشاريع</h1>
-        <p>مساحة المشاريع الطلابية — يتضمن قسم <strong>تحويل صور إلى فيديوهات</strong> المدمج بالكامل.</p>
-      </div>
-      <div class="hub-tabs" role="tablist" aria-label="أقسام بناء المشاريع">
-        <button type="button" class="hub-tab-btn active" id="hubTabAllBtn" role="tab" aria-selected="true">عرض الكل</button>
-        <button type="button" class="hub-tab-btn" id="hubTabImg2VidBtn" role="tab" aria-selected="false">تحويل صور إلى فيديوهات</button>
-        <button type="button" class="hub-tab-btn" id="hubTabGuideBtn" role="tab" aria-selected="false">ملاحظة الدمج</button>
-      </div>
-    </div>
+                    <div class="project-builder-hub" id="project-builder-section">
+                        <div class="hub-top">
+                            <div>
+                                <h1>بناء مشاريع</h1>
+                                <p>مساحة المشاريع الطلابية — يتضمن قسم <strong>تحويل صور إلى فيديوهات</strong> المدمج بالكامل.</p>
+                            </div>
+                            <div class="hub-tabs" role="tablist" aria-label="أقسام بناء المشاريع">
+                                <button type="button" class="hub-tab-btn active" id="hubTabAllBtn" role="tab" aria-selected="true">عرض الكل</button>
+                                <button type="button" class="hub-tab-btn" id="hubTabImg2VidBtn" role="tab" aria-selected="false">تحويل صور إلى فيديوهات</button>
+                                <button type="button" class="hub-tab-btn" id="hubTabGuideBtn" role="tab" aria-selected="false">ملاحظة الدمج</button>
+                            </div>
+                        </div>
 
-    <div class="hub-overview-card" id="hubGuideBox">
-      تم دمج قسم <strong>تحويل صور إلى فيديوهات</strong> مباشرة داخل قسم <strong>بناء مشاريع</strong> مع الحفاظ الكامل على جميع العناصر والأزرار والخصائص والبرمجيات دون حذف أي سطر.
-          <div class="hub-tools-bar" aria-label="أدوات بناء المشاريع">
-        <span class="hub-tool-pill">حساب المعدل والرسوم البيانية</span>
-        <span class="hub-tool-pill">محرر المستندات</span>
-        <span class="hub-tool-pill">المهام وبومودورو</span>
-        <span class="hub-tool-pill">تحويل صور إلى فيديوهات</span>
-      </div>
-    </div>
-  </div>
+                        <div class="hub-overview-card" id="hubGuideBox">
+                            تم دمج قسم <strong>تحويل صور إلى فيديوهات</strong> مباشرة داخل قسم <strong>بناء مشاريع</strong> مع الحفاظ الكامل على جميع العناصر والأزرار والخصائص والبرمجيات دون حذف أي سطر.
+                            <div class="hub-tools-bar" aria-label="أدوات بناء المشاريع">
+                                <span class="hub-tool-pill">حساب المعدل والرسوم البيانية</span>
+                                <span class="hub-tool-pill">محرر المستندات</span>
+                                <span class="hub-tool-pill">المهام وبومودورو</span>
+                                <span class="hub-tool-pill">تحويل صور إلى فيديوهات</span>
+                            </div>
+                        </div>
+                    </div>
 
-<section id="images-to-video-section" class="img2vid-module" aria-label="تحويل صور إلى فيديوهات">
-    <div class="img2vid-header">
-      <div>
-        <h2>تحويل صور إلى فيديوهات</h2>
-        <p>حوّل صور مشروعك أو شرائح الشرح إلى فيديو قصير مباشرة في المتصفح دون الحاجة لخادم خارجي.</p>
-      </div>
-      <div class="btn-row" style="margin-top: 0;">
-        <button type="button" class="btn btn-secondary" id="i2vClearBtn">مسح الكل</button>
-      </div>
-    </div>
+                    <section id="images-to-video-section" class="img2vid-module" aria-label="تحويل صور إلى فيديوهات">
+                        <div class="img2vid-header">
+                            <div>
+                                <h2>تحويل صور إلى فيديوهات</h2>
+                                <p>حوّل صور مشروعك أو شرائح الشرح إلى فيديو قصير مباشرة في المتصفح دون الحاجة لخادم خارجي.</p>
+                            </div>
+                            <div class="btn-row" style="margin-top: 0;">
+                                <button type="button" class="btn btn-secondary" id="i2vClearBtn">مسح الكل</button>
+                            </div>
+                        </div>
 
-    <div class="img2vid-grid">
-      <!-- العمود الأيمن: رفع الصور وإعدادات الحركة -->
-      <div class="panel">
-        <h3>1. الصور والإعدادات</h3>
-        <div class="quick-tip">
-          نصيحة سريعة للطالب: يمكنك سحب الصور لإعادة ترتيبها أو استخدام أسهم (↑ / ↓). يتم استخدام صورك المرفوعة فقط دون أي شرائح مثال أو نصوص جاهزة تلقائية.
-        </div>
+                        <div class="img2vid-grid">
+                            <div class="panel">
+                                <h3>1. الصور والإعدادات</h3>
+                                <div class="quick-tip">
+                                    نصيحة سريعة للطالب: يمكنك سحب الصور لإعادة ترتيبها أو استخدام أسهم (↑ / ↓). يتم استخدام صورك المرفوعة فقط دون أي شرائح مثال أو نصوص جاهزة تلقائية.
+                                </div>
 
-        <div class="dropzone" id="i2vDropzone" role="button" tabindex="0" aria-label="رفع الصور">
-          <strong>اختر صوراً أو اسحبها هنا</strong>
-          <span>يدعم PNG, JPG, WEBP — تُستخدم صورك فقط دون أي إضافات تلقائية</span>
-          <input type="file" id="i2vFileInput" accept="image/*" multiple hidden />
-        </div>
+                                <div class="dropzone" id="i2vDropzone" role="button" tabindex="0" aria-label="رفع الصور">
+                                    <strong>اختر صوراً أو اسحبها هنا</strong>
+                                    <span>يدعم PNG, JPG, WEBP — تُستخدم صورك فقط دون أي إضافات تلقائية</span>
+                                    <input type="file" id="i2vFileInput" accept="image/*" multiple hidden />
+                                </div>
 
-        <div class="slide-list" id="i2vSlideList" aria-live="polite">
-          <div class="slide-sub" style="text-align:center; padding: 14px;">لا توجد صور مضافة بعد. أضف صورك ليتم استخدامها فقط في الفيديو.</div>
-        </div>
+                                <div class="slide-list" id="i2vSlideList" aria-live="polite">
+                                    <div class="slide-sub" style="text-align:center; padding: 14px;">لا توجد صور مضافة بعد. أضف صورك ليتم استخدامها فقط في الفيديو.</div>
+                                </div>
 
-        <div class="summary-bar" id="i2vSummaryBar">
-          <span id="i2vSlideCountBadge">عدد الصور: 0</span>
-          <span id="i2vTotalDurationBadge">المدة التقديرية: 0.0 ثانية</span>
-        </div>
+                                <div class="summary-bar" id="i2vSummaryBar">
+                                    <span id="i2vSlideCountBadge">عدد الصور: 0</span>
+                                    <span id="i2vTotalDurationBadge">المدة التقديرية: 0.0 ثانية</span>
+                                </div>
 
-        <div class="controls-grid" style="margin-top: 14px;">
-          <div class="field">
-            <label for="i2vDuration">مدة كل صورة (ثانية)</label>
-            <input type="number" id="i2vDuration" min="1" max="15" step="0.5" value="2.5" />
-          </div>
+                                <div class="controls-grid" style="margin-top: 14px;">
+                                    <div class="field">
+                                        <label for="i2vDuration">مدة كل صورة (ثانية)</label>
+                                        <input type="number" id="i2vDuration" min="1" max="15" step="0.5" value="2.5" />
+                                    </div>
 
-          <div class="field">
-            <label for="i2vMotion">نوع الحركة</label>
-            <select id="i2vMotion">
-              <option value="zoomIn">تكبير تدريجي</option>
-              <option value="zoomOut">تصغير تدريجي</option>
-              <option value="panRight">تحريك لليمين</option>
-              <option value="panLeft">تحريك لليسار</option>
-              <option value="none">ثابت مع انتقال ناعم</option>
-            </select>
-          </div>
+                                    <div class="field">
+                                        <label for="i2vMotion">نوع الحركة</label>
+                                        <select id="i2vMotion">
+                                            <option value="zoomIn">تكبير تدريجي</option>
+                                            <option value="zoomOut">تصغير تدريجي</option>
+                                            <option value="panRight">تحريك لليمين</option>
+                                            <option value="panLeft">تحريك لليسار</option>
+                                            <option value="none">ثابت مع انتقال ناعم</option>
+                                        </select>
+                                    </div>
 
-          <div class="field">
-            <label for="i2vRatio">أبعاد الفيديو</label>
-            <select id="i2vRatio">
-              <option value="16:9">أفقي 16:9 (عرض مشروع)</option>
-              <option value="1:1">مربع 1:1 (منشورات)</option>
-              <option value="9:16">عمودي 9:16 (ستوري / شورتس)</option>
-            </select>
-          </div>
+                                    <div class="field">
+                                        <label for="i2vRatio">أبعاد الفيديو</label>
+                                        <select id="i2vRatio">
+                                            <option value="16:9">أفقي 16:9 (عرض مشروع)</option>
+                                            <option value="1:1">مربع 1:1 (منشورات)</option>
+                                            <option value="9:16">عمودي 9:16 (ستوري / شورتس)</option>
+                                        </select>
+                                    </div>
 
-          <div class="field">
-            <label for="i2vFps">سلاسة الإطارات (FPS)</label>
-            <select id="i2vFps">
-              <option value="24">24 إطار/ثانية (مناسب للأجهزة الخفيفة)</option>
-              <option value="30" selected>30 إطار/ثانية (قياسي)</option>
-            </select>
-          </div>
-        </div>
+                                    <div class="field">
+                                        <label for="i2vFps">سلاسة الإطارات (FPS)</label>
+                                        <select id="i2vFps">
+                                            <option value="24">24 إطار/ثانية (مناسب للأجهزة الخفيفة)</option>
+                                            <option value="30" selected>30 إطار/ثانية (قياسي)</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-        <div class="field">
-          <label for="i2vCaption">عنوان أو ملاحظة تظهر على الفيديو (اختياري)</label>
-          <input type="text" id="i2vCaption" maxlength="90" placeholder="مثال: ملخص مشروع العلوم - الفصل الأول" />
-        </div>
+                                <div class="field">
+                                    <label for="i2vCaption">عنوان أو ملاحظة تظهر على الفيديو (اختياري)</label>
+                                    <input type="text" id="i2vCaption" maxlength="90" placeholder="مثال: ملخص مشروع العلوم - الفصل الأول" />
+                                </div>
 
-        <div class="field">
-          <label for="i2vAudioInput">ملف صوتي أو موسيقى خلفية (اختياري)</label>
-          <input type="file" id="i2vAudioInput" accept="audio/*" />
-        </div>
+                                <div class="field">
+                                    <label for="i2vAudioInput">ملف صوتي أو موسيقى خلفية (اختياري)</label>
+                                    <input type="file" id="i2vAudioInput" accept="audio/*" />
+                                </div>
 
-        <div class="btn-row">
-          <button type="button" class="btn btn-secondary" id="i2vPreviewBtn">معاينة مباشرة</button>
-          <button type="button" class="btn btn-primary" id="i2vGenerateBtn">توليد الفيديو</button>
-          <button type="button" class="btn btn-secondary" id="i2vStopBtn" disabled>إيقاف</button>
-          <button type="button" class="btn btn-reset-video" id="i2vClearVideoBtn">حذف الفيديو الناتج</button>
-        </div>
+                                <div class="btn-row">
+                                    <button type="button" class="btn btn-secondary" id="i2vPreviewBtn">معاينة مباشرة</button>
+                                    <button type="button" class="btn btn-primary" id="i2vGenerateBtn">توليد الفيديو</button>
+                                    <button type="button" class="btn btn-secondary" id="i2vStopBtn" disabled>إيقاف</button>
+                                    <button type="button" class="btn btn-reset-video" id="i2vClearVideoBtn">حذف الفيديو الناتج</button>
+                                </div>
 
-        <div class="progress-wrap" aria-hidden="true">
-          <div class="progress-bar" id="i2vProgressBar"></div>
-        </div>
-        <div class="status-text" id="i2vStatus">جاهز للبدء.</div>
-        <div class="shortcut-hint">اختصار لوحة المفاتيح: Esc لإيقاف المعاينة أو التوليد أثناء التشغيل.</div>
+                                <div class="progress-wrap" aria-hidden="true">
+                                    <div class="progress-bar" id="i2vProgressBar"></div>
+                                </div>
+                                <div class="status-text" id="i2vStatus">جاهز للبدء.</div>
+                                <div class="shortcut-hint">اختصار لوحة المفاتيح: Esc لإيقاف المعاينة أو التوليد أثناء التشغيل.</div>
 
-        <div class="hint-note">
-          ملاحظة خفيفة على الجهاز: يتم التوليد مباشرة داخل متصفحك؛ يُنصح بعدد صور معتدل (مثلاً 3 إلى 12 صورة) لتجنب استهلاك الذاكرة.
-        </div>
-      </div>
+                                <div class="hint-note">
+                                    ملاحظة خفيفة على الجهاز: يتم التوليد مباشرة داخل متصفحك؛ يُنصح بعدد صور معتدل (مثلاً 3 إلى 12 صورة) لتجنب استهلاك الذاكرة.
+                                </div>
+                            </div>
 
-      <!-- العمود الأيسر: شاشة العرض وتحميل الفيديو الناتج -->
-      <div class="panel">
-        <h3>2. المعاينة والنتيجة</h3>
-        <div class="stage-box" id="i2vStageBox">
-          <canvas id="i2vCanvas" width="1280" height="720"></canvas>
-        </div>
+                            <div class="panel">
+                                <h3>2. المعاينة والنتيجة</h3>
+                                <div class="stage-box" id="i2vStageBox">
+                                    <canvas id="i2vCanvas" width="1280" height="720"></canvas>
+                                </div>
 
-        <div class="result-box" id="i2vResultBox">
-          <video id="i2vResultVideo" controls playsinline preload="auto" muted></video>
-          <div class="result-actions-bar">
-            <button type="button" class="i2v-btn i2v-btn-primary" id="i2vPlayResultBtn">▶️ تشغيل الفيديو</button>
-            <a id="i2vDownloadLink" class="download-link" download="project-video.webm">⬇️ تحميل الفيديو</a>
-            <button type="button" class="i2v-btn i2v-btn-danger" id="i2vDeleteResultInlineBtn">🗑️ حذف الفيديو</button>
-            <button type="button" class="i2v-btn i2v-btn-accent" id="i2vSendToNoteBtn">📝 إرسال إلى دفتر الملاحظات</button>
-            <button type="button" class="i2v-btn i2v-btn-purple" id="i2vPublishProjectBtn">🚀 نشر في مشاركة المشاريع</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+                                <div class="result-box" id="i2vResultBox">
+                                    <video id="i2vResultVideo" controls playsinline preload="auto" muted></video>
+                                    <div class="result-actions-bar">
+                                        <button type="button" class="i2v-btn i2v-btn-primary" id="i2vPlayResultBtn">▶️ تشغيل الفيديو</button>
+                                        <a id="i2vDownloadLink" class="download-link" download="project-video.webm">⬇️ تحميل الفيديو</a>
+                                        <button type="button" class="i2v-btn i2v-btn-danger" id="i2vDeleteResultInlineBtn">🗑️ حذف الفيديو</button>
+                                        <button type="button" class="i2v-btn i2v-btn-accent" id="i2vSendToNoteBtn">📝 إرسال إلى دفتر الملاحظات</button>
+                                        <button type="button" class="i2v-btn i2v-btn-purple" id="i2vPublishProjectBtn">🚀 نشر في مشاركة المشاريع</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <!-- نافذة معالجات pdf -->
@@ -1266,7 +1288,6 @@
                         </div>
                     </div>
 
-                    <!-- بطاقة نظام الأصدقاء والبحث بالـ ID بأسلوب فوري (Firebase Realtime Database) -->
                     <div class="ff-id-hub-card" id="ffFirebaseFriendCard">
                         <div class="ff-id-hub-row">
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -1373,7 +1394,6 @@
                         <button class="btn" onclick="sendAiMessage()" style="width:auto; background:var(--accent); color:#0f172a;">اسأل AI ✨</button>
                     </div>
 
-
                     <div class="ai-lab-box" id="aiHandwritingOcrBox">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                             <strong style="color:#38bdf8; font-size:14px;">📷 تحويل صورة خط اليد إلى نص منسّق وإرساله للملاحظة</strong>
@@ -1406,10 +1426,7 @@
                         </div>
                     </div>
 
-                    <div class="ai-lab-box">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-                            <strong style="color:#34d399; font-size:14px;">🧪 مختبر مكتبات تطوير AI (Brain.js & TensorFlow.js)</strong>
-                            <span style="font-size:11px; color:var(--accent)                    <div class="adv-ai-suite" id="advancedAiSuite">
+                    <div class="adv-ai-suite" id="advancedAiSuite">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                             <strong style="color:#38bdf8; font-size:14px;">🚀 مركز المكتبات والوكلاء المتقدمة (RAG • Multi-Agent • Transformers.js • Tool-Calling)</strong>
                             <span style="font-size:11px; color:#94a3b8;">يعمل محلياً في المتصفح مع ربط الأدوات المتاحة</span>
@@ -1421,7 +1438,6 @@
                             <button type="button" class="adv-ai-tab" data-advtab="tools" onclick="switchAdvAiTab('tools', this)">🛠️ استدعاء الأدوات (Tool-Calling)</button>
                         </div>
 
-                        <!-- 1. RAG & استرجاع المراجع -->
                         <div id="advPanel-rag" class="adv-ai-panel">
                             <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">فهرسة ملاحظاتك ومصادرك واسترجاع أكثر المقاطع صلة مع إظهار المصدر:</div>
                             <div class="row-flex" style="margin-bottom:8px;">
@@ -1432,7 +1448,6 @@
                             <div id="ragOutputBox" class="adv-ai-output">اضغط "استرجاع" للبحث في مستنداتك وملاحظاتك الحالية.</div>
                         </div>
 
-                        <!-- 2. وكلاء متعدد الأدوار (Stateful Multi-Agent) -->
                         <div id="advPanel-agents" class="adv-ai-panel hidden">
                             <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">خط أنابيب وكلاء (باحث → محلل → مدقق) يمرّر الحالة عبر المراحل:</div>
                             <div class="row-flex" style="margin-bottom:8px;">
@@ -1442,7 +1457,6 @@
                             <div id="multiAgentOutputBox" class="adv-ai-output">أدخل موضوعاً ثم شغّل الوكلاء الثلاثة لعرض مخرجات كل مرحلة.</div>
                         </div>
 
-                        <!-- 3. Transformers.js (WebGPU / ONNX) -->
                         <div id="advPanel-transformers" class="adv-ai-panel hidden">
                             <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">تحميل وتشغيل نماذج Hugging Face عبر <code>@huggingface/transformers</code> (مع فحص دعم WebGPU):</div>
                             <div class="row-flex" style="margin-bottom:8px;">
@@ -1456,7 +1470,6 @@
                             <div id="tjsOutputBox" class="adv-ai-output">جاهز لفحص WebGPU وتحميل النموذج عند الطلب.</div>
                         </div>
 
-                        <!-- 4. استدعاء الأدوات والتحقق المهيكل (Tool-Calling) -->
                         <div id="advPanel-tools" class="adv-ai-panel hidden">
                             <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">تنفيذ أداة تحقق حقيقية وإرجاع مخرج مهيكل (Structured JSON):</div>
                             <div class="row-flex" style="margin-bottom:8px;">
@@ -1471,7 +1484,11 @@
                             <div id="toolCallerOutputBox" class="adv-ai-output">اختر أداة وأدخل معاملها للحصول على نتيجة مهيكلة.</div>
                         </div>
                     </div>
-;" id="aiLibsStatusBadge">جاري فحص المكتبات...</span>
+
+                    <div class="ai-lab-box">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                            <strong style="color:#34d399; font-size:14px;">🧪 مختبر مكتبات تطوير AI (Brain.js & TensorFlow.js)</strong>
+                            <span style="font-size:11px; color:var(--accent);" id="aiLibsStatusBadge">جاري فحص المكتبات...</span>
                         </div>
                         <div class="row-flex" style="margin-bottom:8px;">
                             <select id="aiLabLibSelect" style="padding:9px 12px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:bold;">
@@ -1508,7 +1525,7 @@
             </button>
         </nav>
 
-                <!-- أيقونة الأستاذ بكامل جسده مع تطوير الغرافيك -->
+        <!-- أيقونة الأستاذ بكامل جسده مع تطوير الغرافيك -->
         <div id="professorAiWidget" class="state-idle" title="الأستاذ الذكي — اسحبني أو اضغط عليّ">
             <div id="profSpeechBubble" class="prof-bubble hidden" role="status" aria-live="polite"></div>
             <button type="button" id="profAskBtn" class="prof-ask-btn" title="اسأل الأستاذ" aria-label="اسأل الأستاذ">؟</button>
@@ -1531,39 +1548,27 @@
                         <stop offset="100%" stop-color="#2563eb" />
                     </linearGradient>
                 </defs>
-
-                <!-- ظل الأرضية تحت القدمين -->
                 <ellipse cx="60" cy="149" rx="30" ry="5.5" fill="rgba(2, 6, 23, 0.45)" />
-
-                <!-- الرجل اليسرى الكاملة (بنطال + ركبة + حذاء) -->
                 <g class="prof-leg-left">
                     <path d="M46 103 L44 125 L54 125 L56 103 Z" fill="url(#profTrousersGrad)" stroke="#334155" stroke-width="1.2" />
                     <path d="M44 125 L43 142 L53 142 L54 125 Z" fill="#1e293b" stroke="#334155" stroke-width="1.2" />
                     <path d="M36 142 L53 142 L54 148 L35 148 Z" rx="2" fill="#0f172a" stroke="#64748b" stroke-width="1.1" />
                 </g>
-
-                <!-- الرجل اليمنى الكاملة (بنطال + ركبة + حذاء) -->
                 <g class="prof-leg-right">
                     <path d="M64 103 L66 125 L76 125 L74 103 Z" fill="url(#profTrousersGrad)" stroke="#334155" stroke-width="1.2" />
                     <path d="M66 125 L67 142 L77 142 L76 125 Z" fill="#1e293b" stroke="#334155" stroke-width="1.2" />
                     <path d="M67 142 L85 142 L86 148 L66 148 Z" rx="2" fill="#0f172a" stroke="#64748b" stroke-width="1.1" />
                 </g>
-
-                <!-- الذراع اليسرى -->
                 <g class="prof-arm-left">
                     <path d="M35 74 Q20 84 22 99" stroke="url(#profCoatGrad)" stroke-width="10" stroke-linecap="round" fill="none" />
                     <circle cx="22" cy="101" r="5.5" fill="url(#profSkinGrad)" stroke="#eab308" stroke-width="1" />
                 </g>
-
-                <!-- الذراع اليمنى مع مؤشر علمي -->
                 <g class="prof-arm-right">
                     <path d="M85 74 Q101 82 98 97" stroke="url(#profCoatGrad)" stroke-width="10" stroke-linecap="round" fill="none" />
                     <circle cx="98" cy="99" r="5.5" fill="url(#profSkinGrad)" stroke="#eab308" stroke-width="1" />
                     <rect x="96" y="76" width="3.5" height="22" rx="1.5" transform="rotate(14 98 87)" fill="url(#profAccentGrad)" />
                     <circle cx="100.5" cy="75" r="2.6" fill="#38bdf8" />
                 </g>
-
-                <!-- الجذع والرداء الأكاديمي للأستاذ -->
                 <g class="prof-body">
                     <path d="M33 105 L37 73 Q60 66 83 73 L87 105 Z" fill="url(#profCoatGrad)" stroke="#cbd5e1" stroke-width="1.8" />
                     <polygon points="51,72 60,87 69,72" fill="#f1f5f9" />
@@ -1572,19 +1577,14 @@
                     <line x1="69.5" y1="91" x2="76.5" y2="91" stroke="#38bdf8" stroke-width="1.2" />
                     <line x1="69.5" y1="94" x2="74.5" y2="94" stroke="#94a3b8" stroke-width="1.2" />
                 </g>
-
-                <!-- رأس الأستاذ وقبعة التخرج / النظارات -->
                 <g class="prof-head">
                     <circle cx="60" cy="46" r="21.5" fill="url(#profSkinGrad)" stroke="#eab308" stroke-width="1.5" />
-                    <!-- قبعة أكاديمية أنيقة -->
                     <polygon points="36,30 60,21 84,30 60,38" fill="#0f172a" stroke="#38bdf8" stroke-width="1" />
                     <line x1="81" y1="31" x2="81" y2="43" stroke="#38bdf8" stroke-width="1.8" />
                     <circle cx="81" cy="44" r="2.2" fill="#38bdf8" />
-                    <!-- نظارات الأستاذ -->
                     <rect x="44" y="40" width="13" height="10" rx="2.8" fill="rgba(255,255,255,0.52)" stroke="#0f172a" stroke-width="2" />
                     <rect x="63" y="40" width="13" height="10" rx="2.8" fill="rgba(255,255,255,0.52)" stroke="#0f172a" stroke-width="2" />
                     <line x1="57" y1="45" x2="63" y2="45" stroke="#0f172a" stroke-width="2" />
-                    <!-- العيون والابتسامة -->
                     <circle cx="50.5" cy="45" r="2.2" fill="#0f172a" />
                     <circle cx="69.5" cy="45" r="2.2" fill="#0f172a" />
                     <path d="M53 55 Q60 60 67 55" stroke="#1e293b" stroke-width="2.1" stroke-linecap="round" fill="none" />
@@ -1658,7 +1658,7 @@
         </div>
     </div>
 
-    <!-- نافذة الخصوصية والأمان (مع القفل التلقائي) -->
+    <!-- نافذة الخصوصية والأمان -->
     <div id="privacySecurityModal" class="modal-overlay hidden" onclick="if(event.target === this) closePrivacySecurityModal()">
         <div class="modal-box" onclick="event.stopPropagation()">
             <h3 style="color:#38bdf8; margin-bottom:12px;">🛡️ إعدادات الخصوصية والأمان</h3>
@@ -1861,8 +1861,6 @@
         </div>
     </div>
 
-
-    <!-- ==================== سكربت تبويب تحويل صور إلى فيديوهات (منظم ومحدث بالكامل) ==================== -->
     <script src="state-i18n.js"></script>
     <script src="sync-security.js"></script>
     <script src="win-auth.js"></script>
@@ -1881,7 +1879,6 @@
 
     <script>
         (function () {
-            // إعدادات مشروع smart-student-platform-f6eaf الحقيقية في Firebase Console
             const firebaseConfig = {
                 apiKey: "AIzaSyCibfAnFN0BACS9-OKf5wmals4KpKc_FKY",
                 authDomain: "smart-student-platform-f6eaf.firebaseapp.com",
@@ -1894,8 +1891,7 @@
             };
 
             function sanitizePlayerId(raw) {
-                const cleaned = String(raw || '').replace(/^#/, '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
-                return cleaned;
+                return String(raw || '').replace(/^#/, '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
             }
 
             function getActivePlayerId() {
@@ -2149,7 +2145,7 @@
         })();
     </script>
 
-    
+    <!-- تحكم متكامل بأبعاد الصور من اليمين واليسار (سحب جانبي + أزرار يمين ويسار + نسبة مئوية 20% - 100%) -->
     <script>
         (function () {
             window.triggerInsertImageIntoNote = function () {
@@ -2159,6 +2155,75 @@
                     input.click();
                 }
             };
+
+            function attachSideDimensionControls(figure, img) {
+                if (!figure || !img) return;
+
+                figure.querySelectorAll('.img-side-resize-handle').forEach(h => h.remove());
+
+                const sizeLabel = figure.querySelector('.img-scale-badge-label');
+                const rangeSlider = figure.querySelector('.img-scale-range-input');
+                const numInput = figure.querySelector('.img-scale-num-input');
+
+                function applyScalePercent(rawPct) {
+                    const parsed = parseInt(rawPct, 10);
+                    const clamped = Math.max(20, Math.min(100, Number.isNaN(parsed) ? 80 : parsed));
+                    img.setAttribute('data-scale-pct', String(clamped));
+                    img.style.width = clamped + '%';
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    if (rangeSlider) rangeSlider.value = String(clamped);
+                    if (numInput) numInput.value = String(clamped);
+                    if (sizeLabel) sizeLabel.textContent = 'الأبعاد: ' + clamped + '%';
+                    if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                }
+
+                figure.__applyImageScalePercent = applyScalePercent;
+
+                function bindSideHandle(side) {
+                    const handle = document.createElement('button');
+                    handle.type = 'button';
+                    handle.className = 'img-side-resize-handle handle-' + side;
+                    handle.textContent = side === 'left' ? '⬅' : '➡';
+                    handle.title = side === 'left'
+                        ? 'اسحب من جهة اليسار لتغيير أبعاد الصورة (20% - 100%)'
+                        : 'اسحب من جهة اليمين لتغيير أبعاد الصورة (20% - 100%)';
+
+                    handle.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const container = figure.parentElement || document.getElementById('wordRichEditor');
+                        const containerWidth = Math.max(200, (container ? container.clientWidth : figure.clientWidth) - 24);
+                        const startX = e.clientX;
+                        const startWidthPx = img.getBoundingClientRect().width || (containerWidth * 0.8);
+
+                        handle.setPointerCapture?.(e.pointerId);
+
+                        function onMove(ev) {
+                            const dx = ev.clientX - startX;
+                            const deltaWidth = side === 'right' ? dx : -dx;
+                            const nextWidthPx = startWidthPx + deltaWidth;
+                            const nextPct = Math.round((nextWidthPx / containerWidth) * 100);
+                            applyScalePercent(nextPct);
+                        }
+
+                        function onUp() {
+                            window.removeEventListener('pointermove', onMove);
+                            window.removeEventListener('pointerup', onUp);
+                            if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                        }
+
+                        window.addEventListener('pointermove', onMove);
+                        window.addEventListener('pointerup', onUp);
+                    });
+
+                    figure.appendChild(handle);
+                }
+
+                bindSideHandle('left');
+                bindSideHandle('right');
+            }
 
             function insertFigureElementIntoEditor(dataUrl, fileName) {
                 const editor = document.getElementById('wordRichEditor');
@@ -2173,13 +2238,13 @@
                 const figure = document.createElement('figure');
                 figure.className = 'note-inserted-image-block';
                 figure.contentEditable = 'false';
-                figure.style.cssText = 'position:relative; margin:12px 0; padding:10px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; text-align:center;';
+                figure.style.cssText = 'position:relative; margin:14px 0; padding:12px 20px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; text-align:center;';
 
                 const img = document.createElement('img');
                 img.src = dataUrl;
                 img.alt = fileName || 'صورة الملاحظة';
                 img.setAttribute('data-scale-pct', '80');
-                img.style.cssText = 'width:80%; max-width:100%; height:auto; border-radius:8px; display:block; margin:0 auto; transition:width 0.12s ease;';
+                img.style.cssText = 'width:80%; max-width:100%; height:auto; border-radius:8px; display:block; margin:0 auto; transition:width 0.1s ease;';
 
                 const caption = document.createElement('figcaption');
                 caption.contentEditable = 'true';
@@ -2187,84 +2252,87 @@
                 caption.style.cssText = 'margin-top:6px; font-size:12px; color:#475569; outline:none;';
 
                 const controls = document.createElement('div');
-                controls.style.cssText = 'margin-top:8px; display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap;';
+                controls.style.cssText = 'margin-top:8px; display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;';
 
                 const sizeLabel = document.createElement('span');
+                sizeLabel.className = 'img-scale-badge-label';
                 sizeLabel.style.cssText = 'font-size:11px; color:#334155; font-weight:700;';
-                sizeLabel.textContent = 'الحجم: 80%';
+                sizeLabel.textContent = 'الأبعاد: 80%';
+
+                const shrinkFromRightBtn = document.createElement('button');
+                shrinkFromRightBtn.type = 'button';
+                shrinkFromRightBtn.textContent = '➡ تصغير يمين';
+                shrinkFromRightBtn.style.cssText = 'padding:3px 7px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
+                shrinkFromRightBtn.onclick = () => {
+                    const cur = parseInt(img.getAttribute('data-scale-pct') || '80', 10);
+                    figure.__applyImageScalePercent?.(cur - 10);
+                };
 
                 const rangeSlider = document.createElement('input');
                 rangeSlider.type = 'range';
+                rangeSlider.className = 'img-scale-range-input';
                 rangeSlider.min = '20';
                 rangeSlider.max = '100';
                 rangeSlider.step = '1';
                 rangeSlider.value = '80';
-                rangeSlider.title = 'تحكم بالحجم من 20% إلى 100%';
-                rangeSlider.style.cssText = 'width:110px; cursor:pointer; accent-color:#2563eb;';
+                rangeSlider.title = 'تحكم بالأبعاد من 20% إلى 100%';
+                rangeSlider.style.cssText = 'width:105px; cursor:pointer; accent-color:#2563eb;';
 
                 const numInput = document.createElement('input');
                 numInput.type = 'number';
+                numInput.className = 'img-scale-num-input';
                 numInput.min = '20';
                 numInput.max = '100';
                 numInput.step = '1';
                 numInput.value = '80';
-                numInput.title = 'أدخل نسبة الحجم (20 إلى 100)';
-                numInput.style.cssText = 'width:58px; padding:3px 6px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; text-align:center;';
+                numInput.style.cssText = 'width:54px; padding:3px 5px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; text-align:center;';
 
                 const pctSign = document.createElement('span');
                 pctSign.textContent = '%';
                 pctSign.style.cssText = 'font-size:11px; color:#334155; font-weight:700;';
 
-                function applyScalePercent(rawPct) {
-                    const parsed = parseInt(rawPct, 10);
-                    const clamped = Math.max(20, Math.min(100, Number.isNaN(parsed) ? 80 : parsed));
-                    img.setAttribute('data-scale-pct', String(clamped));
-                    img.style.width = clamped + '%';
-                    img.style.maxWidth = '100%';
-                    img.style.height = 'auto';
-                    rangeSlider.value = String(clamped);
-                    numInput.value = String(clamped);
-                    sizeLabel.textContent = 'الحجم: ' + clamped + '%';
-                    if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
-                }
+                const shrinkFromLeftBtn = document.createElement('button');
+                shrinkFromLeftBtn.type = 'button';
+                shrinkFromLeftBtn.textContent = '⬅ تصغير يسار';
+                shrinkFromLeftBtn.style.cssText = 'padding:3px 7px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
+                shrinkFromLeftBtn.onclick = () => {
+                    const cur = parseInt(img.getAttribute('data-scale-pct') || '80', 10);
+                    figure.__applyImageScalePercent?.(cur - 10);
+                };
 
-                rangeSlider.addEventListener('input', () => applyScalePercent(rangeSlider.value));
-                numInput.addEventListener('change', () => applyScalePercent(numInput.value));
-                numInput.addEventListener('input', () => {
-                    if (numInput.value === '') return;
-                    const v = parseInt(numInput.value, 10);
-                    if (!Number.isNaN(v) && v >= 20 && v <= 100) {
-                        applyScalePercent(v);
-                    }
-                });
+                const expandBothSidesBtn = document.createElement('button');
+                expandBothSidesBtn.type = 'button';
+                expandBothSidesBtn.textContent = '⇿ توسيع يمين/يسار';
+                expandBothSidesBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #2563eb; background:#eff6ff; color:#1d4ed8; cursor:pointer;';
+                expandBothSidesBtn.onclick = () => {
+                    const cur = parseInt(img.getAttribute('data-scale-pct') || '80', 10);
+                    figure.__applyImageScalePercent?.(cur + 10);
+                };
 
-                function moveFigureBy(step) {
+                const moveFigureBy = (step) => {
                     if (step < 0 && figure.previousElementSibling) {
                         editor.insertBefore(figure, figure.previousElementSibling);
                     } else if (step > 0 && figure.nextElementSibling) {
                         editor.insertBefore(figure.nextElementSibling, figure);
                     }
                     if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
-                }
+                };
 
                 const upBtn = document.createElement('button');
                 upBtn.type = 'button';
                 upBtn.textContent = '⬆️ لأعلى';
-                upBtn.title = 'نقل الصورة للأعلى';
                 upBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
                 upBtn.onclick = () => moveFigureBy(-1);
 
                 const downBtn = document.createElement('button');
                 downBtn.type = 'button';
                 downBtn.textContent = '⬇️ لأسفل';
-                downBtn.title = 'نقل الصورة للأسفل';
                 downBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
                 downBtn.onclick = () => moveFigureBy(1);
 
                 const placeAtCursorBtn = document.createElement('button');
                 placeAtCursorBtn.type = 'button';
                 placeAtCursorBtn.textContent = '📍 نقل لموضع المؤشر';
-                placeAtCursorBtn.title = 'انقل الصورة إلى المكان الذي تنقر عليه داخل النص';
                 placeAtCursorBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #2563eb; background:#eff6ff; color:#1d4ed8; cursor:pointer;';
                 placeAtCursorBtn.onclick = () => {
                     if (typeof showToast === 'function') {
@@ -2299,8 +2367,31 @@
                     if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
                 };
 
-                controls.append(sizeLabel, rangeSlider, numInput, pctSign, upBtn, downBtn, placeAtCursorBtn, delBtn);
+                controls.append(
+                    sizeLabel,
+                    shrinkFromRightBtn,
+                    rangeSlider,
+                    numInput,
+                    pctSign,
+                    shrinkFromLeftBtn,
+                    expandBothSidesBtn,
+                    upBtn,
+                    downBtn,
+                    placeAtCursorBtn,
+                    delBtn
+                );
                 figure.append(img, caption, controls);
+                attachSideDimensionControls(figure, img);
+
+                rangeSlider.addEventListener('input', () => figure.__applyImageScalePercent?.(rangeSlider.value));
+                numInput.addEventListener('change', () => figure.__applyImageScalePercent?.(numInput.value));
+                numInput.addEventListener('input', () => {
+                    if (numInput.value === '') return;
+                    const v = parseInt(numInput.value, 10);
+                    if (!Number.isNaN(v) && v >= 20 && v <= 100) {
+                        figure.__applyImageScalePercent?.(v);
+                    }
+                });
 
                 editor.focus();
                 if (savedRange) {
@@ -2347,7 +2438,7 @@
                         insertFigureElementIntoEditor(dataUrl, file.name);
                         addedCount++;
                         if (addedCount === files.length && typeof showToast === 'function') {
-                            showToast(addedCount === 1 ? 'تمت إضافة الصورة إلى الملاحظة 🖼️' : `تمت إضافة ${addedCount} صور إلى الملاحظة 🖼️`);
+                            showToast(addedCount === 1 ? 'تمت إضافة الصورة مع تحكم يمين ويسار 🖼️' : `تمت إضافة ${addedCount} صور مع تحكم يمين ويسار 🖼️`);
                         }
                     };
                     reader.readAsDataURL(file);
@@ -2521,6 +2612,7 @@
         });
     </script>
 
+    <!-- سكربت تبويب تحويل صور إلى فيديوهات -->
     <script>
         (function () {
             const fileInput = document.getElementById('i2vFileInput');
@@ -2558,7 +2650,6 @@
             let activeRecorder = null;
             let currentVideoUrl = '';
 
-            // منع أي دالة خارجية من حقن شرائح مثال أو نصوص مثل "النتائج والخاتمة"
             window.addSampleSlides = function () { return []; };
             window.loadSampleSlides = function () { return []; };
             window.getSlides = function () { return userSlides.slice(); };
@@ -2761,7 +2852,6 @@
 
                 ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-                // رسم عنوان المستخدم فقط إذا كتبه بنفسه في حقل العنوان
                 const userCaption = (captionInput?.value || '').trim();
                 if (userCaption) {
                     const barH = Math.max(44, Math.round(h * 0.08));
@@ -3005,7 +3095,7 @@
                         const titleEl = document.getElementById('shareProjTitle');
                         const contentEl = document.getElementById('shareProjContent');
                         if (titleEl && !titleEl.value) titleEl.value = 'عرض صور المشروع (' + userSlides.length + ' صورة)';
-                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:\\n' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('\\n');
+                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:\n' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('\n');
                     }
                 });
             }
@@ -3052,12 +3142,10 @@
                 }
             }, true);
 
-            // إزالة أي شرائح مثال قديمة قد تكون ظاهرة في القائمة عند الفتح
             userSlides = [];
             renderSlideList();
         })();
     </script>
-
 
     <!-- تسجيل Service Worker وتفعيل التثبيت الحقيقي للتطبيق على الهاتف (PWA) -->
     <script>
@@ -3099,7 +3187,6 @@
             };
         })();
     </script>
-
 
     <!-- ==================== حزمة المكتبات والروابط العلمية لتعزيز ردود الذكاء الاصطناعي ==================== -->
     <script defer src="https://cdn.jsdelivr.net/npm/mathjs@13.0.3/lib/browser/math.min.js"></script>
@@ -3239,7 +3326,6 @@
         })();
     </script>
 
-
     <script>
         (function () {
             window.wantsSourcesInPrompt = function (text) {
@@ -3274,8 +3360,7 @@
                 if (!wantsRefs && reply) {
                     const stripped = reply
                         .replace(/\[?المراجع العلمية المرفقة:[\s\S]*$/i, "")
-                        .replace(/(?:^|
-)\s*(?:المراجع|المصادر|References|Sources)\s*:[\s\S]*$/i, "")
+                        .replace(/(?:^|\n)\s*(?:المراجع|المصادر|References|Sources)\s*:[\s\S]*$/i, "")
                         .trim();
                     return stripped || reply;
                 }
@@ -3312,8 +3397,7 @@
                         const calc = window.evaluateScienceMath(normalizedExpr);
                         if (calc && calc.ok && typeof calc.value !== "undefined") {
                             const ans = includeRefs
-                                ? `يساوي ${calc.value}
-المصدر: محرك الحساب الرياضي (${calc.engine})`
+                                ? `يساوي ${calc.value}\nالمصدر: محرك الحساب الرياضي (${calc.engine})`
                                 : `يساوي ${calc.value}`;
                             if (targetChatContainerId) appendAiBubble(targetChatContainerId, "ai", ans);
                             return ans;
@@ -3331,12 +3415,8 @@
                 if (typeof window.callGeminiOrAiModel === "function") {
                     try {
                         const promptToSend = includeRefs && sciCtx
-                            ? `${q}
-[المراجع المطلوبة:
-${sciCtx}
-]`
-                            : `${q}
-[أجب بشكل مباشر ومختصر دون ذكر مراجع أو مصادر إلا إذا طلب المستخدم ذلك صراحة.]`;
+                            ? `${q}\n[المراجع المطلوبة:\n${sciCtx}\n]`
+                            : `${q}\n[أجب بشكل مباشر ومختصر دون ذكر مراجع أو مصادر إلا إذا طلب المستخدم ذلك صراحة.]`;
                         const modelOut = await window.callGeminiOrAiModel(promptToSend);
                         if (modelOut && String(modelOut).trim()) {
                             const finalReply = window.formatDirectAiAnswer(q, String(modelOut).trim());
@@ -3348,8 +3428,7 @@ ${sciCtx}
 
                 let fallbackReply = "";
                 if (includeRefs && sciCtx) {
-                    fallbackReply = `النتيجة والمراجع لـ "${q}":
-${sciCtx}`;
+                    fallbackReply = `النتيجة والمراجع لـ "${q}":\n${sciCtx}`;
                 } else {
                     const sym = typeof window.solveSymbolicScience === "function" ? window.solveSymbolicScience(q) : null;
                     if (sym) {
@@ -3357,8 +3436,7 @@ ${sciCtx}`;
                     } else if (typeof window.searchWikipediaScience === "function") {
                         const wiki = (await window.searchWikipediaScience(q, "ar")) || (await window.searchWikipediaScience(q, "en"));
                         if (wiki && wiki.extract) {
-                            const firstSent = String(wiki.extract).split(/[.،
-]/)[0].trim();
+                            const firstSent = String(wiki.extract).split(/[.،\n]/)[0].trim();
                             fallbackReply = firstSent || String(wiki.extract).slice(0, 240);
                         }
                     }
@@ -3389,8 +3467,6 @@ ${sciCtx}`;
                         appendAiBubble("aiChatMessages", "user", q);
                         aiInput.value = "";
                         window.askAiDirectEngine(q, "aiChatMessages");
-                    } else if (typeof window.buildScientificAiContext === "function") {
-                        // لا نُرفق مراجع تلقائياً ما لم يطلبها المستخدم
                     }
                 };
 
@@ -3529,7 +3605,7 @@ ${sciCtx}`;
                 }
             });
 
-                        const askBtn = document.getElementById('profAskBtn');
+            const askBtn = document.getElementById('profAskBtn');
             if (askBtn) {
                 askBtn.addEventListener('pointerdown', (e) => {
                     e.stopPropagation();
@@ -3791,9 +3867,7 @@ ${sciCtx}`;
                     const kb = (f.size / 1024).toFixed(1);
                     details.push((i + 1) + ') ' + f.name + ' (' + kb + ' KB — ' + pageGuess + ')');
                 }
-                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:
-' + details.join('
-'));
+                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:\n' + details.join('\n'));
             };
 
             window.preparePdfSplitRange = function () {
@@ -3852,8 +3926,7 @@ ${sciCtx}`;
             window.sendPdfSummaryToWorkshop = function () {
                 const taskInput = document.getElementById('taskInput');
                 if (taskInput && typeof addTask === 'function') {
-                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('
-')[0].slice(0, 80);
+                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('\n')[0].slice(0, 80);
                     addTask();
                     if (typeof showToast === 'function') showToast('تمت إضافة مهمة مراجعة PDF');
                 }
