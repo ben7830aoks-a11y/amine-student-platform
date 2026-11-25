@@ -90,6 +90,75 @@
                 padding: 6px 8px;
             }
         }
+        .ff-id-hub-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.95));
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-top: 12px;
+        }
+        .ff-id-hub-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ff-id-code-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.14);
+            border: 1px solid var(--accent, #38bdf8);
+            color: #e0f2fe;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .ff-search-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .ff-search-bar input {
+            flex: 1;
+            min-width: 170px;
+            padding: 8px 11px;
+            background: var(--bg-dark, #0f172a);
+            color: #fff;
+            border: 1px solid var(--border, #334155);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .ff-found-card {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ff-friends-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .ff-friend-chip {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid var(--border, #334155);
+            color: #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -931,6 +1000,33 @@
                         </div>
                     </div>
 
+                    <!-- بطاقة نظام الأصدقاء والبحث بالـ ID بأسلوب فوري (Firebase Realtime Database) -->
+                    <div class="ff-id-hub-card" id="ffFirebaseFriendCard">
+                        <div class="ff-id-hub-row">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span style="font-size:13px; font-weight:bold; color:#38bdf8;">🎮 نظام الأصدقاء بالـ ID:</span>
+                                <span class="ff-id-code-pill" id="ffMyIdBadge">ID: #1001</span>
+                                <button type="button" class="copy-mini-btn" onclick="ffCopyMyPlayerId()">📋 نسخ الـ ID</button>
+                            </div>
+                            <span id="ffFirebaseSyncStatus" style="font-size:11px; color:#94a3b8;">Firebase: جاهز</span>
+                        </div>
+
+                        <div class="ff-search-bar">
+                            <input type="text" id="ffSearchFriendIdInput" placeholder="أدخل ID الصديق للبحث والإضافة (مثال: #2045 أو 2045)" onkeypress="if(event.key==='Enter') ffSearchAndPreviewFriend()">
+                            <button type="button" class="add-friend-btn" onclick="ffSearchAndPreviewFriend()">🔍 بحث بالـ ID</button>
+                        </div>
+
+                        <div id="ffSearchFeedback" style="font-size:12px; color:#94a3b8; margin-top:6px;"></div>
+                        <div id="ffFoundFriendBox" class="ff-found-card hidden"></div>
+
+                        <div style="margin-top:8px;">
+                            <span style="font-size:11px; color:#94a3b8;">👥 قائمة أصدقائي (<span id="ffFriendsCountLabel">0</span>):</span>
+                            <div id="ffFriendsChipsContainer" class="ff-friends-chips">
+                                <span class="ff-friend-chip">لا يوجد أصدقاء مضافون بعد</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="study-pomodoro-bar" id="studyPomodoroCard">
                         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                             <div style="font-size:28px;">🍅</div>
@@ -1367,12 +1463,285 @@
     <script src="shell-bot.js"></script>
     <script src="win-img2vid.js"></script>
 
+    <!-- مكتبات Firebase Realtime Database (نسخة Compat) ونظام الأصدقاء بالـ ID -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+    <script>
+        (function () {
+            // استبدل هذه القيم بإعدادات مشروعك الحقيقي في Firebase Console
+            const firebaseConfig = {
+                apiKey: "YOUR_API_KEY",
+                authDomain: "YOUR_PROJECT.firebaseapp.com",
+                databaseURL: "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.app",
+                projectId: "YOUR_PROJECT",
+                storageBucket: "YOUR_PROJECT.appspot.com",
+                messagingSenderId: "YOUR_SENDER_ID",
+                appId: "YOUR_APP_ID"
+            };
+
+            function sanitizePlayerId(raw) {
+                const cleaned = String(raw || '').replace(/^#/, '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
+                return cleaned;
+            }
+
+            function getActivePlayerId() {
+                if (typeof currentUser !== 'undefined' && currentUser && currentUser.id) {
+                    const cleaned = sanitizePlayerId(currentUser.id);
+                    if (cleaned) return cleaned;
+                }
+                let localId = sanitizePlayerId(localStorage.getItem('ssp_ff_player_id'));
+                if (!localId) {
+                    localId = String(Math.floor(100000 + Math.random() * 900000));
+                    localStorage.setItem('ssp_ff_player_id', localId);
+                }
+                return localId;
+            }
+
+            function getActivePlayerName() {
+                if (typeof currentUser !== 'undefined' && currentUser && currentUser.username) {
+                    return String(currentUser.username).trim().slice(0, 40) || 'طالب';
+                }
+                return (document.getElementById('navUsername')?.textContent || 'طالب').trim().slice(0, 40) || 'طالب';
+            }
+
+            let rtdb = null;
+            let lastFoundFriend = null;
+            let friendsListenerAttachedFor = '';
+
+            function initFirebaseFriendSystem() {
+                const statusBadge = document.getElementById('ffFirebaseSyncStatus');
+                const myIdBadge = document.getElementById('ffMyIdBadge');
+                const myId = getActivePlayerId();
+                if (myIdBadge) myIdBadge.textContent = 'ID: #' + myId;
+
+                const hasValidConfig = firebaseConfig && firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('YOUR_');
+                if (!hasValidConfig || typeof firebase === 'undefined' || !firebase.database) {
+                    if (statusBadge) statusBadge.textContent = 'Firebase: أضف firebaseConfig للتفعيل السحابي';
+                    renderLocalFallbackFriends();
+                    return;
+                }
+
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(firebaseConfig);
+                    }
+                    rtdb = firebase.database();
+                    if (statusBadge) {
+                        statusBadge.textContent = 'Firebase: متصل';
+                        statusBadge.style.color = '#34d399';
+                    }
+                    syncCurrentStudentToFirebase();
+                    attachFirebaseFriendsListener();
+                } catch (err) {
+                    console.error(err);
+                    if (statusBadge) {
+                        statusBadge.textContent = 'Firebase: وضع محلي';
+                        statusBadge.style.color = '#fbbf24';
+                    }
+                    renderLocalFallbackFriends();
+                }
+            }
+
+            async function syncCurrentStudentToFirebase() {
+                const myId = getActivePlayerId();
+                const myName = getActivePlayerName();
+                const myIdBadge = document.getElementById('ffMyIdBadge');
+                if (myIdBadge) myIdBadge.textContent = 'ID: #' + myId;
+
+                if (!rtdb) return;
+                try {
+                    await rtdb.ref('users/' + myId).update({
+                        id: myId,
+                        name: myName,
+                        lastSeen: Date.now()
+                    });
+                } catch (_) {}
+            }
+
+            function renderFriendsChips(friendsArray) {
+                const container = document.getElementById('ffFriendsChipsContainer');
+                const countEl = document.getElementById('ffFriendsCountLabel');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const list = Array.isArray(friendsArray) ? friendsArray : [];
+                if (countEl) countEl.textContent = String(list.length);
+
+                if (!list.length) {
+                    const emptyChip = document.createElement('span');
+                    emptyChip.className = 'ff-friend-chip';
+                    emptyChip.textContent = 'لا يوجد أصدقاء مضافون بعد';
+                    container.appendChild(emptyChip);
+                    return;
+                }
+
+                list.forEach((f) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'ff-friend-chip';
+                    chip.textContent = (f.name || 'طالب') + ' (#' + f.id + ')';
+                    container.appendChild(chip);
+                });
+            }
+
+            function renderLocalFallbackFriends() {
+                const myId = getActivePlayerId();
+                try {
+                    const raw = JSON.parse(localStorage.getItem('ssp_ff_friends_' + myId) || '[]');
+                    renderFriendsChips(Array.isArray(raw) ? raw : []);
+                } catch (_) {
+                    renderFriendsChips([]);
+                }
+            }
+
+            function attachFirebaseFriendsListener() {
+                const myId = getActivePlayerId();
+                if (!rtdb || friendsListenerAttachedFor === myId) return;
+                friendsListenerAttachedFor = myId;
+
+                rtdb.ref('friends/' + myId).on('value', (snap) => {
+                    const arr = [];
+                    if (snap && snap.exists()) {
+                        snap.forEach((child) => {
+                            const val = child.val() || {};
+                            arr.push({
+                                id: sanitizePlayerId(val.id || child.key),
+                                name: String(val.name || 'طالب').slice(0, 40)
+                            });
+                        });
+                    }
+                    localStorage.setItem('ssp_ff_friends_' + myId, JSON.stringify(arr));
+                    renderFriendsChips(arr);
+                });
+            }
+
+            window.ffCopyMyPlayerId = async function () {
+                const myId = '#' + getActivePlayerId();
+                if (typeof copyTextToClipboard === 'function') {
+                    copyTextToClipboard(myId, 'تم نسخ الـ ID الخاص بك ' + myId);
+                    return;
+                }
+                try {
+                    await navigator.clipboard.writeText(myId);
+                } catch (_) {}
+            };
+
+            window.ffSearchAndPreviewFriend = async function () {
+                const input = document.getElementById('ffSearchFriendIdInput');
+                const feedback = document.getElementById('ffSearchFeedback');
+                const foundBox = document.getElementById('ffFoundFriendBox');
+                lastFoundFriend = null;
+
+                if (foundBox) {
+                    foundBox.classList.add('hidden');
+                    foundBox.innerHTML = '';
+                }
+
+                const targetId = sanitizePlayerId(input ? input.value : '');
+                const myId = getActivePlayerId();
+
+                if (!targetId) {
+                    if (feedback) feedback.textContent = 'أدخل رقم ID صحيحاً للبحث عن صديقك.';
+                    return;
+                }
+                if (targetId === myId) {
+                    if (feedback) feedback.textContent = 'هذا هو الـ ID الخاص بك (#' + myId + ').';
+                    return;
+                }
+
+                if (!rtdb) {
+                    if (feedback) feedback.textContent = 'أدخل بيانات firebaseConfig في الملف لتفعيل البحث عن الأصدقاء عبر السحابة.';
+                    return;
+                }
+
+                if (feedback) feedback.textContent = 'جاري البحث عن #' + targetId + '...';
+
+                try {
+                    const snap = await rtdb.ref('users/' + targetId).get();
+                    if (!snap.exists()) {
+                        if (feedback) feedback.textContent = 'لم يتم العثور على مستخدم مسجل بالـ ID #' + targetId + '.';
+                        return;
+                    }
+
+                    const data = snap.val() || {};
+                    lastFoundFriend = {
+                        id: targetId,
+                        name: String(data.name || 'طالب').slice(0, 40)
+                    };
+
+                    if (feedback) feedback.textContent = '';
+                    if (foundBox) {
+                        const infoWrap = document.createElement('div');
+                        const nameStrong = document.createElement('strong');
+                        nameStrong.style.color = '#fff';
+                        nameStrong.textContent = lastFoundFriend.name;
+                        const idSpan = document.createElement('span');
+                        idSpan.style.cssText = 'color:#38bdf8; margin-inline-start:8px; font-family:monospace;';
+                        idSpan.textContent = '#' + lastFoundFriend.id;
+                        infoWrap.append(nameStrong, idSpan);
+
+                        const addBtn = document.createElement('button');
+                        addBtn.type = 'button';
+                        addBtn.className = 'add-friend-btn';
+                        addBtn.textContent = '➕ إضافة صديق';
+                        addBtn.onclick = () => window.ffConfirmAddFriend(lastFoundFriend);
+
+                        foundBox.append(infoWrap, addBtn);
+                        foundBox.classList.remove('hidden');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    if (feedback) feedback.textContent = 'تعذر إتمام البحث الآن. تحقق من الاتصال وقواعد الأمان.';
+                }
+            };
+
+            window.ffConfirmAddFriend = async function (friendObj) {
+                const target = friendObj || lastFoundFriend;
+                const feedback = document.getElementById('ffSearchFeedback');
+                const foundBox = document.getElementById('ffFoundFriendBox');
+                const myId = getActivePlayerId();
+
+                if (!target || !target.id) return;
+                if (!rtdb) {
+                    if (feedback) feedback.textContent = 'فعّل firebaseConfig أولاً لحفظ الصديق في قاعدة البيانات.';
+                    return;
+                }
+
+                try {
+                    await rtdb.ref('friends/' + myId + '/' + target.id).set({
+                        id: target.id,
+                        name: target.name || 'طالب',
+                        addedAt: Date.now()
+                    });
+                    if (foundBox) {
+                        foundBox.classList.add('hidden');
+                        foundBox.innerHTML = '';
+                    }
+                    if (feedback) {
+                        feedback.textContent = 'تمت إضافة ' + target.name + ' (#' + target.id + ') إلى قائمة أصدقائك.';
+                    }
+                    if (typeof showToast === 'function') {
+                        showToast('تمت إضافة الصديق #' + target.id');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    if (feedback) feedback.textContent = 'تعذر إضافة الصديق. تحقق من صلاحيات Rules.';
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', () => {
+                initFirebaseFriendSystem();
+                setTimeout(syncCurrentStudentToFirebase, 800);
+            });
+        })();
+    </script>
+
     <!-- سكربت معادلات KaTeX مدمج مباشرة دون الحاجة لملف خارجي -->
     <script>
         function insertMathFormulaBlock() {
             const editor = document.getElementById('wordRichEditor');
             if (!editor) return;
-            const formula = prompt('أدخل صيغة LaTeX (مثال: \\int_0^1 x^2\\,dx أو \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}):', '\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}');
+            const formula = prompt('أدخل صيغة LaTeX (مثال: \int_0^1 x^2\,dx أو \frac{-b \pm \sqrt{b^2-4ac}}{2a}):', '\frac{-b \pm \sqrt{b^2-4ac}}{2a}');
             if (!formula || !formula.trim()) return;
 
             const cleanFormula = formula.trim();
@@ -1435,7 +1804,9 @@
                 if (typeof showToast === 'function') showToast('مكتبة Marked.js غير متاحة حالياً');
                 return;
             }
-            const md = prompt('أدخل نص Markdown لتحويله إلى تنسيق منسق:', '### عنوان فرعي\n- **نقطة مهمة:** شرح مختصر\n- `code_example()`');
+            const md = prompt('أدخل نص Markdown لتحويله إلى تنسيق منسق:', '### عنوان فرعي
+- **نقطة مهمة:** شرح مختصر
+- `code_example()`');
             if (!md || !md.trim()) return;
             const htmlOut = marked.parse(md);
             const holder = document.createElement('div');
@@ -2016,7 +2387,9 @@
                         const titleEl = document.getElementById('shareProjTitle');
                         const contentEl = document.getElementById('shareProjContent');
                         if (titleEl && !titleEl.value) titleEl.value = 'عرض صور المشروع (' + userSlides.length + ' صورة)';
-                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:\n' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('\n');
+                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:
+' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('
+');
                     }
                 });
             }
