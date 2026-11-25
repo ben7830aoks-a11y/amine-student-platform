@@ -1722,7 +1722,7 @@
                         feedback.textContent = 'تمت إضافة ' + target.name + ' (#' + target.id + ') إلى قائمة أصدقائك.';
                     }
                     if (typeof showToast === 'function') {
-                        showToast('تمت إضافة الصديق #' + target.id');
+                        showToast('تمت إضافة الصديق #' + target.id);
                     }
                 } catch (err) {
                     console.error(err);
@@ -1742,7 +1742,7 @@
         function insertMathFormulaBlock() {
             const editor = document.getElementById('wordRichEditor');
             if (!editor) return;
-            const formula = prompt('أدخل صيغة LaTeX (مثال: \int_0^1 x^2\,dx أو \frac{-b \pm \sqrt{b^2-4ac}}{2a}):', '\frac{-b \pm \sqrt{b^2-4ac}}{2a}');
+            const formula = prompt('أدخل صيغة LaTeX (مثال: \\int_0^1 x^2\\,dx أو \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}):', '\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}');
             if (!formula || !formula.trim()) return;
 
             const cleanFormula = formula.trim();
@@ -1805,9 +1805,7 @@
                 if (typeof showToast === 'function') showToast('مكتبة Marked.js غير متاحة حالياً');
                 return;
             }
-            const md = prompt('أدخل نص Markdown لتحويله إلى تنسيق منسق:', '### عنوان فرعي
-- **نقطة مهمة:** شرح مختصر
-- `code_example()`');
+            const md = prompt('أدخل نص Markdown لتحويله إلى تنسيق منسق:', '### عنوان فرعي\\n- **نقطة مهمة:** شرح مختصر\\n- `code_example()`');
             if (!md || !md.trim()) return;
             const htmlOut = marked.parse(md);
             const holder = document.createElement('div');
@@ -2388,9 +2386,7 @@
                         const titleEl = document.getElementById('shareProjTitle');
                         const contentEl = document.getElementById('shareProjContent');
                         if (titleEl && !titleEl.value) titleEl.value = 'عرض صور المشروع (' + userSlides.length + ' صورة)';
-                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:
-' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('
-');
+                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:\\n' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('\\n');
                     }
                 });
             }
