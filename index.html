@@ -279,6 +279,18 @@
             max-height: 260px;
             overflow-y: auto;
         }
+        .battle-live-sync-box {
+            margin: 10px 0 14px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
@@ -3585,7 +3597,7 @@
         })();
     </script>
 
-    <!-- ==================== مزامنة عامة عبر Firebase: غرفة المذاكرة، المعارك، ومشاركة المشاريع ==================== -->
+    <!-- ==================== مزامنة عامة عبر Firebase: غرفة المذاكرة، المعارك الحية، إشعارات الدعوات، ومشاركة المشاريع ==================== -->
     <script>
     (function () {
         const PUBLIC_ONLY_FIREBASE_CONFIG = {
@@ -3606,6 +3618,7 @@
             firebase.initializeApp(PUBLIC_ONLY_FIREBASE_CONFIG);
         }
         const rtdb = firebase.database();
+        const CLIENT_SESSION_ID = "cli_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
 
         function cleanKey(raw, fallback) {
             const s = String(raw || "")
@@ -3772,14 +3785,343 @@
             });
         }
 
-        // 2) قسم المعارك العامة (#section-battleArena)
+        // 2) قسم المعارك الحية بين الأجهزة + إشعارات الدعوات (#section-battleArena)
+        let activeBattleSyncCode = "ROOM-101";
+        let isApplyingRemoteBattleState = false;
+        let currentBattleRoomRef = null;
+        let currentBattleRoomListener = null;
+        let currentBattleMovesRef = null;
+        let currentBattleMovesListener = null;
+        let currentInviteListenerRef = null;
+        let currentInviteListenerId = "";
+        let pendingBattleInviteObj = null;
+
+        function getCurrentRoomCodeClean() {
+            const raw = document.getElementById("battleRoomCodeBadge")?.textContent || "ROOM-101";
+            return cleanKey(raw, "ROOM-101");
+        }
+
+        function setCurrentRoomUi(roomCode, roomName) {
+            const cleanCode = cleanKey(roomCode, "ROOM-101");
+            const codeEl = document.getElementById("battleRoomCodeBadge");
+            const nameEl = document.getElementById("battleRoomNameDisplay");
+            if (codeEl) codeEl.textContent = "#" + cleanCode;
+            if (nameEl && roomName) nameEl.textContent = String(roomName);
+            if (typeof battleRoomInfo !== "undefined" && battleRoomInfo) {
+                battleRoomInfo.code = "#" + cleanCode;
+                if (roomName) battleRoomInfo.name = String(roomName);
+            }
+        }
+
+        function collectCurrentBattleSnapshot() {
+            const actor = getActor();
+            const code = getCurrentRoomCodeClean();
+            const roomName = (document.getElementById("battleRoomNameDisplay")?.textContent || "غرفة التحدي السريع").trim();
+            const rounds = (document.getElementById("battleRoundsSelect")?.value || "3");
+            const domain = (document.getElementById("battleDomainSelect")?.value || "programming");
+            const scoreA = (document.getElementById("teamAScoreBadge")?.textContent || "0 نقطة").trim();
+            const scoreB = (document.getElementById("teamBScoreBadge")?.textContent || "0 نقطة").trim();
+            const roundInfo = (document.getElementById("battleRoundInfo")?.textContent || "").trim();
+            const timerText = (document.getElementById("battleTimerBadge")?.textContent || "").trim();
+            const questionText = (document.getElementById("battleQuestionText")?.textContent || "").trim();
+            const feedbackText = (document.getElementById("battleRoundFeedback")?.textContent || "").trim();
+            const activeAreaHidden = !!document.getElementById("battleActiveArea")?.classList.contains("hidden");
+            const summaryHidden = !!document.getElementById("battleSummaryArea")?.classList.contains("hidden");
+            const summaryHtml = document.getElementById("battleSummaryArea")?.innerHTML || "";
+
+            const options = Array.from(document.querySelectorAll("#battleOptionsGrid button")).map((btn, idx) => ({
+                index: idx,
+                text: (btn.textContent || "").trim(),
+                disabled: !!btn.disabled
+            }));
+
+            return {
+                roomCode: code,
+                roomName,
+                rounds,
+                domain,
+                scoreA,
+                scoreB,
+                roundInfo,
+                timerText,
+                questionText,
+                feedbackText,
+                activeAreaHidden,
+                summaryHidden,
+                summaryHtml,
+                options,
+                hostId: actor.id,
+                hostName: actor.name,
+                sourceClientId: CLIENT_SESSION_ID,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            };
+        }
+
+        function applyRemoteBattleSnapshot(data) {
+            if (!data || data.sourceClientId === CLIENT_SESSION_ID) return;
+            isApplyingRemoteBattleState = true;
+            try {
+                const code = cleanKey(data.roomCode || activeBattleSyncCode, "ROOM-101");
+                setCurrentRoomUi(code, data.roomName);
+
+                const roundsEl = document.getElementById("battleRoundsSelect");
+                const roundsBadge = document.getElementById("battleRoundsBadge");
+                const domainEl = document.getElementById("battleDomainSelect");
+                const scoreAEl = document.getElementById("teamAScoreBadge");
+                const scoreBEl = document.getElementById("teamBScoreBadge");
+                const roundInfoEl = document.getElementById("battleRoundInfo");
+                const timerEl = document.getElementById("battleTimerBadge");
+                const qTextEl = document.getElementById("battleQuestionText");
+                const fbEl = document.getElementById("battleRoundFeedback");
+                const optsGrid = document.getElementById("battleOptionsGrid");
+                const activeArea = document.getElementById("battleActiveArea");
+                const summaryArea = document.getElementById("battleSummaryArea");
+
+                if (roundsEl && data.rounds) roundsEl.value = String(data.rounds);
+                if (roundsBadge && data.rounds) roundsBadge.textContent = `${data.rounds} جولات`;
+                if (domainEl && data.domain) domainEl.value = String(data.domain);
+                if (scoreAEl && data.scoreA) scoreAEl.textContent = data.scoreA;
+                if (scoreBEl && data.scoreB) scoreBEl.textContent = data.scoreB;
+
+                if (activeArea && typeof data.activeAreaHidden === "boolean") {
+                    activeArea.classList.toggle("hidden", data.activeAreaHidden);
+                }
+                if (roundInfoEl && typeof data.roundInfo === "string") {
+                    roundInfoEl.textContent = data.roundInfo;
+                }
+                if (timerEl && data.timerText) {
+                    timerEl.textContent = data.timerText;
+                }
+                if (qTextEl && typeof data.questionText === "string") {
+                    qTextEl.textContent = data.questionText;
+                }
+                if (fbEl && typeof data.feedbackText === "string") {
+                    fbEl.textContent = data.feedbackText;
+                }
+
+                if (optsGrid && Array.isArray(data.options) && data.options.length) {
+                    const existingBtns = Array.from(optsGrid.querySelectorAll("button"));
+                    if (existingBtns.length === data.options.length) {
+                        data.options.forEach((opt, i) => {
+                            if (existingBtns[i]) {
+                                existingBtns[i].textContent = opt.text;
+                                existingBtns[i].disabled = !!opt.disabled;
+                            }
+                        });
+                    } else {
+                        optsGrid.innerHTML = "";
+                        data.options.forEach((opt) => {
+                            const b = document.createElement("button");
+                            b.type = "button";
+                            b.className = "battle-option-btn";
+                            b.textContent = opt.text;
+                            b.disabled = !!opt.disabled;
+                            b.onclick = () => {
+                                recordBattleMoveToRoom(code, {
+                                    type: "answer",
+                                    optionIndex: opt.index,
+                                    optionText: opt.text
+                                });
+                            };
+                            optsGrid.appendChild(b);
+                        });
+                    }
+                }
+
+                if (summaryArea && typeof data.summaryHidden === "boolean") {
+                    summaryArea.classList.toggle("hidden", data.summaryHidden);
+                    if (!data.summaryHidden && typeof data.summaryHtml === "string" && data.summaryHtml) {
+                        summaryArea.innerHTML = data.summaryHtml;
+                    }
+                }
+            } finally {
+                setTimeout(() => {
+                    isApplyingRemoteBattleState = false;
+                }, 140);
+            }
+        }
+
+        function recordBattleMoveToRoom(roomCode, movePayload) {
+            const cleanCode = cleanKey(roomCode || getCurrentRoomCodeClean(), "ROOM-101");
+            const actor = getActor();
+            rtdb.ref(`public/battles/${cleanCode}/moves`).push().set({
+                playerId: actor.id,
+                playerName: actor.name,
+                sourceClientId: CLIENT_SESSION_ID,
+                ...movePayload,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        function publishBattleStateNow() {
+            if (isApplyingRemoteBattleState) return;
+            const snap = collectCurrentBattleSnapshot();
+            activeBattleSyncCode = snap.roomCode;
+            rtdb.ref(`public/battles/${snap.roomCode}`).update(snap);
+        }
+
+        function attachBattleRoomSyncListeners(roomCode) {
+            const cleanCode = cleanKey(roomCode, "ROOM-101");
+            activeBattleSyncCode = cleanCode;
+
+            if (currentBattleRoomRef && currentBattleRoomListener) {
+                currentBattleRoomRef.off("value", currentBattleRoomListener);
+            }
+            if (currentBattleMovesRef && currentBattleMovesListener) {
+                currentBattleMovesRef.off("child_added", currentBattleMovesListener);
+            }
+
+            currentBattleRoomRef = rtdb.ref(`public/battles/${cleanCode}`);
+            currentBattleRoomListener = (snap) => {
+                if (!snap || !snap.exists()) return;
+                applyRemoteBattleSnapshot(snap.val());
+            };
+            currentBattleRoomRef.on("value", currentBattleRoomListener);
+
+            const roomJoinTime = Date.now();
+            currentBattleMovesRef = rtdb.ref(`public/battles/${cleanCode}/moves`);
+            currentBattleMovesListener = (childSnap) => {
+                if (!childSnap || !childSnap.exists()) return;
+                const move = childSnap.val() || {};
+                if (move.sourceClientId === CLIENT_SESSION_ID) return;
+                const ts = Number(move.createdAt || 0);
+                if (ts && ts < roomJoinTime - 2000) return;
+
+                const statusEl = document.getElementById("battleLiveSyncStatus");
+                if (statusEl) {
+                    const actionLabel = move.type === "cant_answer"
+                        ? "أعلن عدم القدرة على الإجابة"
+                        : `اختار الإجابة: ${move.optionText || ""}`;
+                    statusEl.textContent = `⚡ ${move.playerName || "منافس"} (#${move.playerId || "?"}) ${actionLabel}`;
+                }
+            };
+            currentBattleMovesRef.on("child_added", currentBattleMovesListener);
+        }
+
+        function renderInviteBannerWithActions(inviteObj) {
+            const banner = document.getElementById("incomingInviteBanner");
+            const textEl = document.getElementById("incomingInviteText");
+            if (!banner || !textEl) return;
+
+            pendingBattleInviteObj = inviteObj;
+            const fromName = inviteObj.fromName || "منافس";
+            const fromId = inviteObj.fromId || "?";
+            const roomCode = cleanKey(inviteObj.roomCode || "ROOM-101", "ROOM-101");
+            const roomName = inviteObj.roomName || `غرفة #${roomCode}`;
+
+            textEl.textContent = `📩 دعوة معركة مباشرة من ${fromName} (#${fromId}) للانضمام إلى "${roomName}" (#${roomCode})`;
+            banner.classList.remove("hidden");
+
+            const actionsWrap = banner.querySelector("div:last-child");
+            if (actionsWrap) {
+                actionsWrap.innerHTML = "";
+                const acceptBtn = document.createElement("button");
+                acceptBtn.type = "button";
+                acceptBtn.style.cssText = "background:#10b981; color:#fff; border:none; padding:7px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;";
+                acceptBtn.textContent = "✅ قبول ودخول المعركة";
+                acceptBtn.onclick = () => {
+                    window.acceptIncomingInvite();
+                };
+
+                const declineBtn = document.createElement("button");
+                declineBtn.type = "button";
+                declineBtn.style.cssText = "background:#ef4444; color:#fff; border:none; padding:7px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;";
+                declineBtn.textContent = "✕ رفض";
+                declineBtn.onclick = () => {
+                    window.declineIncomingInvite();
+                };
+
+                actionsWrap.append(acceptBtn, declineBtn);
+            }
+        }
+
+        window.acceptIncomingInvite = function () {
+            const inv = pendingBattleInviteObj;
+            const banner = document.getElementById("incomingInviteBanner");
+            if (banner) banner.classList.add("hidden");
+            if (!inv) return;
+
+            const targetRoom = cleanKey(inv.roomCode || "ROOM-101", "ROOM-101");
+            setCurrentRoomUi(targetRoom, inv.roomName || `غرفة #${targetRoom}`);
+            attachBattleRoomSyncListeners(targetRoom);
+
+            if (typeof showMainSection === "function") {
+                const battleNavBtn = document.getElementById("navBattleArena");
+                showMainSection("battleArena", battleNavBtn || null);
+            }
+            if (typeof showToast === "function") {
+                showToast("تم الانضمام إلى غرفة المعركة #" + targetRoom + " ⚔️");
+            }
+            pendingBattleInviteObj = null;
+        };
+
+        window.declineIncomingInvite = function () {
+            const banner = document.getElementById("incomingInviteBanner");
+            if (banner) banner.classList.add("hidden");
+            pendingBattleInviteObj = null;
+        };
+
+        window.sendBattleInviteToId = async function (rawTargetId) {
+            const targetId = cleanKey(rawTargetId, "");
+            if (!targetId) {
+                if (typeof showToast === "function") {
+                    showToast("أدخل ID المنافس لإرسال دعوة المعركة");
+                }
+                return;
+            }
+            const actor = getActor();
+            const roomCode = getCurrentRoomCodeClean();
+            const roomName = (document.getElementById("battleRoomNameDisplay")?.textContent || "غرفة التحدي السريع").trim();
+
+            await rtdb.ref(`public/battleInvites/${targetId}`).set({
+                inviteId: "inv_" + Date.now(),
+                toId: targetId,
+                fromId: actor.id,
+                fromName: actor.name,
+                roomCode,
+                roomName,
+                sourceClientId: CLIENT_SESSION_ID,
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            if (typeof showToast === "function") {
+                showToast(`تم إرسال إشعار دعوة المعركة (#${roomCode}) إلى #${targetId} 📩`);
+            }
+        };
+
+        function attachIncomingBattleInvitesListener() {
+            const actor = getActor();
+            if (!actor.id || currentInviteListenerId === actor.id) return;
+            if (currentInviteListenerRef) {
+                currentInviteListenerRef.off();
+            }
+            currentInviteListenerId = actor.id;
+            const joinedAt = Date.now();
+            currentInviteListenerRef = rtdb.ref(`public/battleInvites/${actor.id}`);
+            currentInviteListenerRef.on("value", (snap) => {
+                if (!snap || !snap.exists()) return;
+                const inv = snap.val() || {};
+                if (inv.sourceClientId === CLIENT_SESSION_ID) return;
+                const ts = Number(inv.createdAt || 0);
+                if (ts && ts < joinedAt - 3000) return;
+
+                renderInviteBannerWithActions(inv);
+                if (typeof showToast === "function") {
+                    showToast(`📩 إشعار دعوة معركة من ${inv.fromName || "منافس"} (#${inv.fromId || "?"})`);
+                }
+            });
+        }
+
         function ensurePublicBattlesBar() {
             const classicPanel = document.getElementById("classicBattlePanel");
             if (!classicPanel || document.getElementById("publicBattlesRoomsBar")) return;
 
             const bar = document.createElement("div");
             bar.id = "publicBattlesRoomsBar";
-            bar.style.cssText = "margin:10px 0 14px; padding:10px 12px; border-radius:10px; background:rgba(15,23,42,0.85); border:1px solid rgba(139,92,246,0.35); display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between;";
+            bar.className = "battle-live-sync-box";
+
+            const leftGroup = document.createElement("div");
+            leftGroup.style.cssText = "display:flex; flex-wrap:wrap; gap:8px; align-items:center;";
 
             const title = document.createElement("span");
             title.style.cssText = "font-size:12px; font-weight:bold; color:#c4b5fd;";
@@ -3789,7 +4131,31 @@
             listWrap.id = "publicBattlesRoomsList";
             listWrap.style.cssText = "display:flex; flex-wrap:wrap; gap:6px; align-items:center;";
 
-            bar.append(title, listWrap);
+            leftGroup.append(title, listWrap);
+
+            const inviteGroup = document.createElement("div");
+            inviteGroup.style.cssText = "display:flex; flex-wrap:wrap; gap:6px; align-items:center;";
+
+            const inviteInput = document.createElement("input");
+            inviteInput.type = "text";
+            inviteInput.id = "battleDirectInviteIdInput";
+            inviteInput.placeholder = "ID خصم لدعوته (#...)";
+            inviteInput.style.cssText = "width:130px; padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:#fff; font-size:11px;";
+
+            const inviteBtn = document.createElement("button");
+            inviteBtn.type = "button";
+            inviteBtn.textContent = "📩 إرسال دعوة";
+            inviteBtn.style.cssText = "background:#8b5cf6; color:#fff; border:none; padding:6px 10px; border-radius:7px; cursor:pointer; font-size:11px; font-weight:bold;";
+            inviteBtn.onclick = () => window.sendBattleInviteToId(inviteInput.value);
+
+            const syncStatus = document.createElement("span");
+            syncStatus.id = "battleLiveSyncStatus";
+            syncStatus.style.cssText = "font-size:11px; color:#34d399;";
+            syncStatus.textContent = "⚡ مزامنة حية مفعّلة";
+
+            inviteGroup.append(inviteInput, inviteBtn, syncStatus);
+            bar.append(leftGroup, inviteGroup);
+
             const banner = classicPanel.querySelector(".battle-room-banner");
             if (banner) {
                 classicPanel.insertBefore(bar, banner);
@@ -3802,51 +4168,71 @@
             const battleSection = document.getElementById("section-battleArena");
             if (!battleSection) return;
             ensurePublicBattlesBar();
+            attachIncomingBattleInvitesListener();
 
-            const publishCurrentBattleRoom = () => {
-                const actor = getActor();
-                const roomName = (document.getElementById("battleRoomNameDisplay")?.textContent || "غرفة التحدي السريع").trim();
-                const rawCode = (document.getElementById("battleRoomCodeBadge")?.textContent || "ROOM-101").trim();
-                const code = cleanKey(rawCode, "ROOM-101");
-                const rounds = (document.getElementById("battleRoundsSelect")?.value || "3");
-                const domain = (document.getElementById("battleDomainSelect")?.value || "programming");
-                const scoreA = (document.getElementById("teamAScoreBadge")?.textContent || "0 نقطة").trim();
-                const scoreB = (document.getElementById("teamBScoreBadge")?.textContent || "0 نقطة").trim();
-
-                rtdb.ref(`public/battles/${code}`).update({
-                    roomCode: code,
-                    roomName,
-                    rounds,
-                    domain,
-                    scoreA,
-                    scoreB,
-                    hostId: actor.id,
-                    hostName: actor.name,
-                    updatedAt: firebase.database.ServerValue.TIMESTAMP
-                });
+            const hookFn = (fnName) => {
+                const orig = window[fnName];
+                if (typeof orig === "function" && !orig.__liveBattleSyncWrapped) {
+                    const wrapped = function (...args) {
+                        const res = orig.apply(this, args);
+                        setTimeout(() => {
+                            attachBattleRoomSyncListeners(getCurrentRoomCodeClean());
+                            publishBattleStateNow();
+                        }, 140);
+                        return res;
+                    };
+                    wrapped.__liveBattleSyncWrapped = true;
+                    window[fnName] = wrapped;
+                }
             };
 
-            const origStartBattle = window.startNewBattle;
-            if (typeof origStartBattle === "function" && !origStartBattle.__publicWrapped) {
-                const wrappedStart = function (...args) {
-                    const res = origStartBattle.apply(this, args);
-                    setTimeout(publishCurrentBattleRoom, 120);
-                    return res;
-                };
-                wrappedStart.__publicWrapped = true;
-                window.startNewBattle = wrappedStart;
-            }
+            [
+                "startNewBattle",
+                "submitCreateBattleRoom",
+                "submitAddCompetitor",
+                "selectBattleSize",
+                "updateRoundsFromBar",
+                "declareCantAnswer",
+                "nextBattleRound",
+                "finishBattle"
+            ].forEach(hookFn);
 
-            const origSubmitRoom = window.submitCreateBattleRoom;
-            if (typeof origSubmitRoom === "function" && !origSubmitRoom.__publicWrapped) {
-                const wrappedSubmitRoom = function (...args) {
-                    const res = origSubmitRoom.apply(this, args);
-                    setTimeout(publishCurrentBattleRoom, 150);
-                    return res;
-                };
-                wrappedSubmitRoom.__publicWrapped = true;
-                window.submitCreateBattleRoom = wrappedSubmitRoom;
-            }
+            const origSendInvite = window.sendLiveInviteToOpponent;
+            window.sendLiveInviteToOpponent = function (targetId) {
+                const chosen = targetId || document.getElementById("aiOpponentIdInput")?.value || "";
+                window.sendBattleInviteToId(chosen);
+                if (typeof origSendInvite === "function") {
+                    try { origSendInvite.call(this, targetId); } catch (_) {}
+                }
+            };
+
+            battleSection.addEventListener("click", (e) => {
+                if (isApplyingRemoteBattleState) return;
+                const target = e.target;
+                if (!target) return;
+                const optBtn = target.closest("#battleOptionsGrid button");
+                if (optBtn) {
+                    const allBtns = Array.from(document.querySelectorAll("#battleOptionsGrid button"));
+                    const idx = allBtns.indexOf(optBtn);
+                    recordBattleMoveToRoom(getCurrentRoomCodeClean(), {
+                        type: "answer",
+                        optionIndex: idx,
+                        optionText: (optBtn.textContent || "").trim()
+                    });
+                    setTimeout(publishBattleStateNow, 180);
+                    return;
+                }
+                if (target.id === "cantAnswerBtn") {
+                    recordBattleMoveToRoom(getCurrentRoomCodeClean(), { type: "cant_answer" });
+                    setTimeout(publishBattleStateNow, 180);
+                    return;
+                }
+                if (target.closest("#classicBattlePanel button")) {
+                    setTimeout(publishBattleStateNow, 200);
+                }
+            });
+
+            attachBattleRoomSyncListeners(getCurrentRoomCodeClean());
 
             rtdb.ref("public/battles").on("value", (snap) => {
                 const listWrap = document.getElementById("publicBattlesRoomsList");
@@ -3870,17 +4256,17 @@
                 }
 
                 rooms.slice(0, 8).forEach((r) => {
+                    const rCode = cleanKey(r.roomCode || r.key, "ROOM-101");
                     const btn = document.createElement("button");
                     btn.type = "button";
                     btn.style.cssText = "background:rgba(139,92,246,0.16); color:#ede9fe; border:1px solid rgba(139,92,246,0.45); padding:5px 10px; border-radius:8px; cursor:pointer; font-size:11px; font-weight:bold;";
-                    btn.textContent = `${r.roomName || "غرفة"} (#${r.roomCode || r.key}) • ${r.scoreA || "0"} vs ${r.scoreB || "0"}`;
+                    btn.textContent = `${r.roomName || "غرفة"} (#${rCode}) • ${r.scoreA || "0"} vs ${r.scoreB || "0"}`;
                     btn.onclick = () => {
-                        const nameEl = document.getElementById("battleRoomNameDisplay");
-                        const codeEl = document.getElementById("battleRoomCodeBadge");
-                        if (nameEl && r.roomName) nameEl.textContent = r.roomName;
-                        if (codeEl) codeEl.textContent = "#" + (r.roomCode || r.key);
+                        setCurrentRoomUi(rCode, r.roomName);
+                        attachBattleRoomSyncListeners(rCode);
+                        applyRemoteBattleSnapshot(r);
                         if (typeof showToast === "function") {
-                            showToast("تم الانضمام إلى غرفة المعركة العامة #" + (r.roomCode || r.key));
+                            showToast("تم الانضمام ومزامنة غرفة المعركة #" + rCode);
                         }
                     };
                     listWrap.appendChild(btn);
@@ -3938,50 +4324,46 @@
 
                 const likeBtn = document.createElement("button");
                 likeBtn.type = "button";
-                likeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "like" ? "#10b981" : "var(--border)"}; background:${myReaction === "like" ? "rgba(16,185,129,0.2)" : "var(--card-bg)"}; color:#fff;`;
+                likeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "like" ? "#10b981" : "var(--border)"}; background:${myReaction === "like" ? "rgba(16,185,129,0.22)" : "var(--card-bg)"}; color:#fff;`;
                 likeBtn.textContent = `👍 إعجاب (${likeCount})`;
-                likeBtn.onclick = async () => {
-                    const next = myReaction === "like" ? null : "like";
-                    await rtdb.ref(`public/sharedProjects/${proj.id}/reactions/${me.id}`).set(next);
-                };
+                likeBtn.onclick = () => togglePublicProjectReaction(proj.id, "like");
 
                 const dislikeBtn = document.createElement("button");
                 dislikeBtn.type = "button";
-                dislikeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "dislike" ? "#ef4444" : "var(--border)"}; background:${myReaction === "dislike" ? "rgba(239,68,68,0.2)" : "var(--card-bg)"}; color:#fff;`;
+                dislikeBtn.style.cssText = `padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold; border:1px solid ${myReaction === "dislike" ? "#ef4444" : "var(--border)"}; background:${myReaction === "dislike" ? "rgba(239,68,68,0.22)" : "var(--card-bg)"}; color:#fff;`;
                 dislikeBtn.textContent = `👎 ديسلايك (${dislikeCount})`;
-                dislikeBtn.onclick = async () => {
-                    const next = myReaction === "dislike" ? null : "dislike";
-                    await rtdb.ref(`public/sharedProjects/${proj.id}/reactions/${me.id}`).set(next);
-                };
+                dislikeBtn.onclick = () => togglePublicProjectReaction(proj.id, "dislike");
 
                 actionsRow.append(likeBtn, dislikeBtn);
 
                 const commentsWrap = document.createElement("div");
-                commentsWrap.style.cssText = "margin-top:12px; padding-top:10px; border-top:1px solid var(--border);";
+                commentsWrap.style.cssText = "margin-top:12px; padding-top:10px; border-top:1px solid rgba(148,163,184,0.18);";
 
-                const commentsList = proj.comments ? Object.keys(proj.comments).map((k) => proj.comments[k]) : [];
-                commentsList.forEach((c) => {
-                    const cRow = document.createElement("div");
-                    cRow.style.cssText = "font-size:12px; color:#cbd5e1; padding:4px 0;";
-                    cRow.textContent = `💬 ${c.authorName || "طالب"}: ${c.text || ""}`;
-                    commentsWrap.appendChild(cRow);
+                const commentsList = document.createElement("div");
+                const rawComments = proj.comments ? Object.values(proj.comments) : [];
+                rawComments.forEach((c) => {
+                    const cItem = document.createElement("div");
+                    cItem.style.cssText = "font-size:12px; color:#cbd5e1; padding:5px 8px; margin-bottom:5px; border-radius:6px; background:rgba(30,41,59,0.7);";
+                    cItem.textContent = `${c.authorName || "طالب"} (#${c.authorId || "?"}): ${c.text || ""}`;
+                    commentsList.appendChild(cItem);
                 });
 
-                const commentForm = document.createElement("div");
-                commentForm.style.cssText = "display:flex; gap:6px; margin-top:8px;";
+                const commentFormRow = document.createElement("div");
+                commentFormRow.style.cssText = "display:flex; gap:8px; margin-top:6px;";
                 const cInput = document.createElement("input");
                 cInput.type = "text";
                 cInput.placeholder = "أضف تعليقاً عاماً على المشروع...";
-                cInput.style.cssText = "flex:1; padding:7px 10px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:#fff; font-size:12px;";
+                cInput.style.cssText = "flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:#fff; font-size:12px;";
+
                 const cBtn = document.createElement("button");
                 cBtn.type = "button";
                 cBtn.textContent = "تعليق";
-                cBtn.style.cssText = "padding:7px 12px; border-radius:7px; border:none; background:var(--primary); color:#fff; font-size:12px; font-weight:bold; cursor:pointer;";
-                const submitComment = async () => {
+                cBtn.style.cssText = "background:var(--primary); color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:bold;";
+                const sendCommentAction = () => {
                     const txt = String(cInput.value || "").trim().slice(0, 300);
                     if (!txt) return;
                     const actor = getActor();
-                    await rtdb.ref(`public/sharedProjects/${proj.id}/comments`).push().set({
+                    rtdb.ref(`public/projects/${proj.id}/comments`).push().set({
                         authorId: actor.id,
                         authorName: actor.name,
                         text: txt,
@@ -3989,65 +4371,80 @@
                     });
                     cInput.value = "";
                 };
-                cBtn.onclick = submitComment;
+                cBtn.onclick = sendCommentAction;
                 cInput.addEventListener("keydown", (e) => {
                     if (e.key === "Enter") {
                         e.preventDefault();
-                        submitComment();
+                        sendCommentAction();
                     }
                 });
 
-                commentForm.append(cInput, cBtn);
-                commentsWrap.appendChild(commentForm);
+                commentFormRow.append(cInput, cBtn);
+                commentsWrap.append(commentsList, commentFormRow);
 
                 card.append(topRow, contentEl, actionsRow, commentsWrap);
                 feed.appendChild(card);
             });
         }
 
-        function bindSharingPublicSync() {
-            const sharingSection = document.getElementById("section-sharing");
-            if (!sharingSection) return;
-
-            window.submitSharedProject = async function () {
-                const titleInput = document.getElementById("shareProjTitle");
-                const domainSelect = document.getElementById("shareProjDomain");
-                const contentTextarea = document.getElementById("shareProjContent");
-
-                const title = String(titleInput ? titleInput.value : "").trim().slice(0, 120);
-                const domain = String(domainSelect ? domainSelect.value : "عام").trim().slice(0, 50);
-                const content = String(contentTextarea ? contentTextarea.value : "").trim().slice(0, 3000);
-
-                if (!title || !content) {
-                    if (typeof showToast === "function") {
-                        showToast("يرجى إدخال عنوان المشروع ومحتواه قبل النشر");
-                    }
-                    return;
+        function togglePublicProjectReaction(projectId, kind) {
+            const me = getActor();
+            const rRef = rtdb.ref(`public/projects/${projectId}/reactions/${me.id}`);
+            rRef.get().then((snap) => {
+                const current = snap && snap.exists() ? snap.val() : null;
+                if (current === kind) {
+                    rRef.remove();
+                } else {
+                    rRef.set(kind);
                 }
+            }).catch(() => {});
+        }
 
-                const actor = getActor();
-                const newRef = rtdb.ref("public/sharedProjects").push();
-                await newRef.set({
-                    id: newRef.key,
-                    title,
-                    domain,
-                    content,
-                    authorId: actor.id,
-                    authorName: actor.name,
-                    createdAt: firebase.database.ServerValue.TIMESTAMP
-                });
+        function bindSharingPublicSync() {
+            const modal = document.getElementById("shareProjectModal");
+            if (!modal) return;
 
-                if (titleInput) titleInput.value = "";
-                if (contentTextarea) contentTextarea.value = "";
-                if (typeof closeShareModal === "function") closeShareModal();
-                if (typeof showToast === "function") showToast("تم نشر المشروع بشكل عام عبر Firebase 🚀");
-            };
+            const submitBtn = modal.querySelector('button[onclick*="submitSharedProject"]');
+            if (submitBtn) {
+                submitBtn.addEventListener("click", function (e) {
+                    const titleEl = document.getElementById("shareProjTitle");
+                    const domainEl = document.getElementById("shareProjDomain");
+                    const contentEl = document.getElementById("shareProjContent");
 
-            rtdb.ref("public/sharedProjects").on("value", (snap) => {
+                    const title = String((titleEl && titleEl.value) || "").trim().slice(0, 120);
+                    const domain = String((domainEl && domainEl.value) || "أخرى").trim().slice(0, 60);
+                    const content = String((contentEl && contentEl.value) || "").trim().slice(0, 6000);
+
+                    if (!title || !content) return;
+
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    const actor = getActor();
+                    const newRef = rtdb.ref("public/projects").push();
+                    newRef.set({
+                        id: newRef.key,
+                        title,
+                        domain,
+                        content,
+                        authorId: actor.id,
+                        authorName: actor.name,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    }).then(() => {
+                        if (titleEl) titleEl.value = "";
+                        if (contentEl) contentEl.value = "";
+                        if (typeof closeShareModal === "function") closeShareModal();
+                        if (typeof showToast === "function") showToast("تم نشر المشروع للجميع في القسم العام ✅");
+                    });
+                }, true);
+            }
+
+            rtdb.ref("public/projects").on("value", (snap) => {
                 const items = [];
                 if (snap && snap.exists()) {
                     snap.forEach((child) => {
-                        items.push({ id: child.key, ...(child.val() || {}) });
+                        const val = child.val() || {};
+                        items.push({ id: child.key, ...val });
                     });
                 }
                 items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -4055,10 +4452,14 @@
             });
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", function () {
             bindStudyRoomPublicSync();
             bindBattlesPublicSync();
             bindSharingPublicSync();
+            setTimeout(() => {
+                bindStudyRoomPublicSync();
+                attachIncomingBattleInvitesListener();
+            }, 900);
         });
     })();
     </script>
