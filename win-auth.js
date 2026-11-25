@@ -247,6 +247,7 @@ function enterApp() {
         () => { if (typeof initWorkspaceData === 'function') initWorkspaceData(); },
         () => { if (typeof initStudentWelcomeBanner === 'function') initStudentWelcomeBanner(); },
         () => { if (typeof initRealtimeBridge === 'function') initRealtimeBridge(); },
+        () => { if (typeof initAiAssistant === 'function') initAiAssistant(); },
         () => { if (typeof updateAiLibrariesBadge === 'function') updateAiLibrariesBadge(); },
         () => { if (typeof resetAutoLockTimer === 'function') resetAutoLockTimer(); },
         () => { if (typeof restoreLastNavigation === 'function') restoreLastNavigation(); },

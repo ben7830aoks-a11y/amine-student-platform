@@ -3553,7 +3553,38 @@
                 const imgsHtml = valid.map(item =>
                     '<div style="page-break-inside:avoid;margin-bottom:18px;text-align:center;"><img src="' + item.url + '" style="max-width:100%;max-height:85vh;border:1px solid #cbd5e1;border-radius:6px;"><div style="font-size:12px;color:#475569;margin-top:6px;">' + item.name.replace(/</g, '&lt;') + '</div></div>'
                 ).join('');
-                printWin.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head><body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' + imgsHtml + '<script>window.onload=function(){window.print();};<\/script>
+                printWin.document.write(
+                    '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head>' +
+                    '<body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' +
+                    imgsHtml +
+                    '<script>window.onload=function(){window.print();};<\/script>' +
+                    '</body></html>'
+                );
+                printWin.document.close();
+                setPdfStatus('تم فتح صفحة ' + valid.length + ' صورة جاهزة للحفظ كـ PDF عبر الطباعة.');
+            };
+
+            window.sendPdfSummaryToNote = function () {
+                const editor = document.getElementById('wordRichEditor');
+                if (!editor) return;
+                const p = document.createElement('p');
+                p.textContent = 'تقرير معالجات pdf: ' + window.__lastPdfProcessorReport;
+                editor.appendChild(p);
+                if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                if (typeof showToast === 'function') showToast('تم إرسال تقرير PDF إلى دفتر الملاحظات');
+            };
+
+            window.sendPdfSummaryToWorkshop = function () {
+                const taskInput = document.getElementById('taskInput');
+                if (taskInput && typeof addTask === 'function') {
+                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('\n')[0].slice(0, 80);
+                    addTask();
+                    if (typeof showToast === 'function') showToast('تمت إضافة مهمة مراجعة PDF');
+                }
+            };
+        })();
+    </script>
+
     <!-- ==================== مزامنة عامة عبر Firebase: غرفة المذاكرة، المعارك، ومشاركة المشاريع ==================== -->
     <script>
     (function () {
@@ -3580,7 +3611,7 @@
             const s = String(raw || "")
                 .replace(/^#/, "")
                 .trim()
-                .replace(/[.#$/\[\]]/g, "_")
+                .replace(/[.#$\[\]]/g, "_")
                 .slice(0, 64);
             return s || fallback;
         }
@@ -3596,9 +3627,7 @@
             return { id, name };
         }
 
-        // -------------------------------------------------------------------------
-        // 1) قسم غرفة المذاكرة العامة (#section-studyRoom): الحضور، الحالة، الدردشة، وبومودورو
-        // -------------------------------------------------------------------------
+        // 1) قسم غرفة المذاكرة العامة (#section-studyRoom)
         const STUDY_ROOM_ID = "general-study-room";
         let studyChatInitialized = false;
 
@@ -3743,9 +3772,7 @@
             });
         }
 
-        // -------------------------------------------------------------------------
-        // 2) قسم المعارك العامة (#section-battleArena): الغرف العامة ومزامنة المعارك
-        // -------------------------------------------------------------------------
+        // 2) قسم المعارك العامة (#section-battleArena)
         function ensurePublicBattlesBar() {
             const classicPanel = document.getElementById("classicBattlePanel");
             if (!classicPanel || document.getElementById("publicBattlesRoomsBar")) return;
@@ -3861,9 +3888,7 @@
             });
         }
 
-        // -------------------------------------------------------------------------
         // 3) قسم مشاركة مشاريع العامة (#section-sharing / #sharedProjectsFeed)
-        // -------------------------------------------------------------------------
         function renderPublicProjectsFeed(projectsList) {
             const feed = document.getElementById("sharedProjectsFeed");
             if (!feed) return;
@@ -4036,108 +4061,6 @@
             bindSharingPublicSync();
         });
     })();
-<script>
-        (function () {
-            window.__lastPdfProcessorReport = 'لم يتم تنفيذ عملية على ملفات PDF بعد.';
-
-            function setPdfStatus(msg) {
-                window.__lastPdfProcessorReport = msg;
-                const box = document.getElementById('pdfToolsStatusBox');
-                if (box) box.textContent = msg;
-            }
-
-            window.inspectSelectedPdfs = async function () {
-                const input = document.getElementById('pdfMergeFilesInput');
-                const files = Array.from(input && input.files ? input.files : []);
-                if (!files.length) {
-                    setPdfStatus('يرجى اختيار ملف PDF واحد أو أكثر أولاً.');
-                    return;
-                }
-                const details = [];
-                for (let i = 0; i < files.length; i++) {
-                    const f = files[i];
-                    let pageGuess = 'غير محدد';
-                    try {
-                        const text = await f.text();
-                        const matches = text.match(/\/Type\s*\/Page\b/g);
-                        if (matches && matches.length) {
-                            pageGuess = String(matches.length) + ' صفحة تقريباً';
-                        }
-                    } catch (_) {}
-                    const kb = (f.size / 1024).toFixed(1);
-                    details.push((i + 1) + ') ' + f.name + ' (' + kb + ' KB — ' + pageGuess + ')');
-                }
-                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:\n' + details.join('\n'));
-            };
-
-            window.preparePdfSplitRange = function () {
-                const fileInput = document.getElementById('pdfSplitFileInput');
-                const rangeInput = document.getElementById('pdfPageRangeInput');
-                const file = fileInput && fileInput.files && fileInput.files[0];
-                const range = String(rangeInput && rangeInput.value ? rangeInput.value : '').trim();
-                if (!file) {
-                    setPdfStatus('اختر ملف PDF المراد تحديد صفحاته.');
-                    return;
-                }
-                if (!range) {
-                    setPdfStatus('أدخل نطاق الصفحات (مثال: 1-3 أو 2,5).');
-                    return;
-                }
-                setPdfStatus('تم تجهيز نطاق الصفحات [' + range + '] للملف: ' + file.name + '. يمكنك استخدام نافذة الطباعة/PDF لحفظ النطاق المطلوب.');
-            };
-
-            window.buildPrintableImagesPdfView = async function () {
-                const input = document.getElementById('pdfImagesToSheetInput');
-                const files = Array.from(input && input.files ? input.files : []).filter(f => f.type && f.type.startsWith('image/'));
-                if (!files.length) {
-                    setPdfStatus('اختر صورة واحدة أو أكثر لتحويلها إلى صفحة PDF.');
-                    return;
-                }
-                const dataUrls = await Promise.all(files.map(file => new Promise((resolve) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve({ name: file.name, url: reader.result });
-                    reader.onerror = () => resolve(null);
-                    reader.readAsDataURL(file);
-                })));
-                const valid = dataUrls.filter(Boolean);
-                const printWin = window.open('', '_blank');
-                if (!printWin) {
-                    setPdfStatus('تم تجهيز ' + valid.length + ' صورة، يرجى السماح بالنوافذ المنبثقة لفتح صفحة الحفظ كـ PDF.');
-                    return;
-                }
-                const imgsHtml = valid.map(item =>
-                    '<div style="page-break-inside:avoid;margin-bottom:18px;text-align:center;"><img src="' + item.url + '" style="max-width:100%;max-height:85vh;border:1px solid #cbd5e1;border-radius:6px;"><div style="font-size:12px;color:#475569;margin-top:6px;">' + item.name.replace(/</g, '&lt;') + '</div></div>'
-                ).join('');
-                printWin.document.write(
-                    '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head>' +
-                    '<body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' +
-                    imgsHtml +
-                    '<script>window.onload=function(){window.print();};<\/script>' +
-                    '</body></html>'
-                );
-                printWin.document.close();
-                setPdfStatus('تم فتح صفحة ' + valid.length + ' صورة جاهزة للحفظ كـ PDF عبر الطباعة.');
-            };
-
-            window.sendPdfSummaryToNote = function () {
-                const editor = document.getElementById('wordRichEditor');
-                if (!editor) return;
-                const p = document.createElement('p');
-                p.textContent = 'تقرير معالجات pdf: ' + window.__lastPdfProcessorReport;
-                editor.appendChild(p);
-                if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
-                if (typeof showToast === 'function') showToast('تم إرسال تقرير PDF إلى دفتر الملاحظات');
-            };
-
-            window.sendPdfSummaryToWorkshop = function () {
-                const taskInput = document.getElementById('taskInput');
-                if (taskInput && typeof addTask === 'function') {
-                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('\n')[0].slice(0, 80);
-                    addTask();
-                    if (typeof showToast === 'function') showToast('تمت إضافة مهمة مراجعة PDF');
-                }
-            };
-        })();
     </script>
 </body>
 </html>
