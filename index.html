@@ -2620,5 +2620,37 @@
         })();
     </script>
 
+
+    <script>
+        (function () {
+            document.addEventListener("DOMContentLoaded", function () {
+                const aiInput = document.getElementById("aiChatInput");
+                const aiSection = document.getElementById("section-aiAssistant");
+                if (!aiInput || !aiSection) return;
+
+                const sendBtn = aiSection.querySelector('button[onclick*="sendAiMessage"]');
+                const enhancePromptWithScientificContext = async function () {
+                    const q = (aiInput.value || "").trim();
+                    if (!q || typeof window.buildScientificAiContext !== "function") return;
+                    try {
+                        const sciCtx = await window.buildScientificAiContext(q);
+                        if (sciCtx && !q.includes("المراجع العلمية المرفقة")) {
+                            aiInput.value = `${q}\n[المراجع العلمية المرفقة:\n${sciCtx}\n]`;
+                        }
+                    } catch (_) {}
+                };
+
+                if (sendBtn) {
+                    sendBtn.addEventListener("click", enhancePromptWithScientificContext, true);
+                }
+                aiInput.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter") {
+                        enhancePromptWithScientificContext();
+                    }
+                }, true);
+            });
+        })();
+    </script>
+
 </body>
 </html>
