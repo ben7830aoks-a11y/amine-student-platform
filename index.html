@@ -752,6 +752,8 @@
                                 <!-- شريط أدوات: إدراج -->
                                 <div id="wordRibbon-insert" class="word-ribbon-toolbar hidden">
                                     <div class="word-tool-group">
+                                        <input type="file" id="noteInsertImageInput" accept="image/*" multiple class="hidden" onchange="handleNoteImageFilesSelected(event)">
+                                        <button type="button" class="word-tool-btn" onmousedown="event.preventDefault()" onclick="triggerInsertImageIntoNote()" title="إدراج صورة داخل الملاحظة">🖼️ إضافة صورة</button>
                                         <button type="button" class="word-tool-btn" onclick="insertWordTable()">📊 جدول (3×3)</button>
                                         <button type="button" class="word-tool-btn" onclick="insertCodeSnippet()">💻 مربع كود</button>
                                         <button type="button" class="word-tool-btn" onclick="insertMathFormulaBlock()">∑ معادلة LaTeX</button>
@@ -2144,6 +2146,213 @@
                 initFirebaseFriendSystem();
                 setTimeout(syncCurrentStudentToFirebase, 800);
             });
+        })();
+    </script>
+
+    
+    <script>
+        (function () {
+            window.triggerInsertImageIntoNote = function () {
+                const input = document.getElementById('noteInsertImageInput');
+                if (input) {
+                    input.value = '';
+                    input.click();
+                }
+            };
+
+            function insertFigureElementIntoEditor(dataUrl, fileName) {
+                const editor = document.getElementById('wordRichEditor');
+                if (!editor) return;
+
+                let savedRange = null;
+                const prevSel = window.getSelection();
+                if (prevSel && prevSel.rangeCount > 0 && editor.contains(prevSel.anchorNode)) {
+                    savedRange = prevSel.getRangeAt(0).cloneRange();
+                }
+
+                const figure = document.createElement('figure');
+                figure.className = 'note-inserted-image-block';
+                figure.contentEditable = 'false';
+                figure.style.cssText = 'position:relative; margin:12px 0; padding:10px; border:1px solid #cbd5e1; border-radius:10px; background:#f8fafc; text-align:center;';
+
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                img.alt = fileName || 'صورة الملاحظة';
+                img.setAttribute('data-scale-pct', '80');
+                img.style.cssText = 'width:80%; max-width:100%; height:auto; border-radius:8px; display:block; margin:0 auto; transition:width 0.12s ease;';
+
+                const caption = document.createElement('figcaption');
+                caption.contentEditable = 'true';
+                caption.textContent = fileName || 'تعليق على الصورة';
+                caption.style.cssText = 'margin-top:6px; font-size:12px; color:#475569; outline:none;';
+
+                const controls = document.createElement('div');
+                controls.style.cssText = 'margin-top:8px; display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap;';
+
+                const sizeLabel = document.createElement('span');
+                sizeLabel.style.cssText = 'font-size:11px; color:#334155; font-weight:700;';
+                sizeLabel.textContent = 'الحجم: 80%';
+
+                const rangeSlider = document.createElement('input');
+                rangeSlider.type = 'range';
+                rangeSlider.min = '20';
+                rangeSlider.max = '100';
+                rangeSlider.step = '1';
+                rangeSlider.value = '80';
+                rangeSlider.title = 'تحكم بالحجم من 20% إلى 100%';
+                rangeSlider.style.cssText = 'width:110px; cursor:pointer; accent-color:#2563eb;';
+
+                const numInput = document.createElement('input');
+                numInput.type = 'number';
+                numInput.min = '20';
+                numInput.max = '100';
+                numInput.step = '1';
+                numInput.value = '80';
+                numInput.title = 'أدخل نسبة الحجم (20 إلى 100)';
+                numInput.style.cssText = 'width:58px; padding:3px 6px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; text-align:center;';
+
+                const pctSign = document.createElement('span');
+                pctSign.textContent = '%';
+                pctSign.style.cssText = 'font-size:11px; color:#334155; font-weight:700;';
+
+                function applyScalePercent(rawPct) {
+                    const parsed = parseInt(rawPct, 10);
+                    const clamped = Math.max(20, Math.min(100, Number.isNaN(parsed) ? 80 : parsed));
+                    img.setAttribute('data-scale-pct', String(clamped));
+                    img.style.width = clamped + '%';
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    rangeSlider.value = String(clamped);
+                    numInput.value = String(clamped);
+                    sizeLabel.textContent = 'الحجم: ' + clamped + '%';
+                    if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                }
+
+                rangeSlider.addEventListener('input', () => applyScalePercent(rangeSlider.value));
+                numInput.addEventListener('change', () => applyScalePercent(numInput.value));
+                numInput.addEventListener('input', () => {
+                    if (numInput.value === '') return;
+                    const v = parseInt(numInput.value, 10);
+                    if (!Number.isNaN(v) && v >= 20 && v <= 100) {
+                        applyScalePercent(v);
+                    }
+                });
+
+                function moveFigureBy(step) {
+                    if (step < 0 && figure.previousElementSibling) {
+                        editor.insertBefore(figure, figure.previousElementSibling);
+                    } else if (step > 0 && figure.nextElementSibling) {
+                        editor.insertBefore(figure.nextElementSibling, figure);
+                    }
+                    if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                }
+
+                const upBtn = document.createElement('button');
+                upBtn.type = 'button';
+                upBtn.textContent = '⬆️ لأعلى';
+                upBtn.title = 'نقل الصورة للأعلى';
+                upBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
+                upBtn.onclick = () => moveFigureBy(-1);
+
+                const downBtn = document.createElement('button');
+                downBtn.type = 'button';
+                downBtn.textContent = '⬇️ لأسفل';
+                downBtn.title = 'نقل الصورة للأسفل';
+                downBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #94a3b8; background:#fff; color:#0f172a; cursor:pointer;';
+                downBtn.onclick = () => moveFigureBy(1);
+
+                const placeAtCursorBtn = document.createElement('button');
+                placeAtCursorBtn.type = 'button';
+                placeAtCursorBtn.textContent = '📍 نقل لموضع المؤشر';
+                placeAtCursorBtn.title = 'انقل الصورة إلى المكان الذي تنقر عليه داخل النص';
+                placeAtCursorBtn.style.cssText = 'padding:3px 8px; font-size:11px; border-radius:6px; border:1px solid #2563eb; background:#eff6ff; color:#1d4ed8; cursor:pointer;';
+                placeAtCursorBtn.onclick = () => {
+                    if (typeof showToast === 'function') {
+                        showToast('انقر داخل الملاحظة في المكان الذي تريد نقل الصورة إليه 📍');
+                    }
+                    const onPickTarget = (ev) => {
+                        if (!editor.contains(ev.target) || figure.contains(ev.target)) return;
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        let targetBlock = ev.target;
+                        while (targetBlock && targetBlock.parentElement !== editor) {
+                            targetBlock = targetBlock.parentElement;
+                        }
+                        if (targetBlock && targetBlock !== figure) {
+                            targetBlock.after(figure);
+                        } else {
+                            editor.appendChild(figure);
+                        }
+                        editor.removeEventListener('click', onPickTarget, true);
+                        if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                        if (typeof showToast === 'function') showToast('تم نقل الصورة إلى المكان المحدد ✅');
+                    };
+                    editor.addEventListener('click', onPickTarget, true);
+                };
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.textContent = '🗑️ حذف';
+                delBtn.style.cssText = 'padding:3px 9px; font-size:11px; border-radius:6px; border:1px solid #ef4444; background:#fee2e2; color:#991b1b; cursor:pointer;';
+                delBtn.onclick = function () {
+                    figure.remove();
+                    if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                };
+
+                controls.append(sizeLabel, rangeSlider, numInput, pctSign, upBtn, downBtn, placeAtCursorBtn, delBtn);
+                figure.append(img, caption, controls);
+
+                editor.focus();
+                if (savedRange) {
+                    savedRange.deleteContents();
+                    savedRange.insertNode(figure);
+                    const trailingP = document.createElement('p');
+                    trailingP.innerHTML = '<br>';
+                    figure.after(trailingP);
+                    const nextRange = document.createRange();
+                    nextRange.setStart(trailingP, 0);
+                    nextRange.collapse(true);
+                    const s = window.getSelection();
+                    if (s) {
+                        s.removeAllRanges();
+                        s.addRange(nextRange);
+                    }
+                } else {
+                    editor.appendChild(figure);
+                    const trailingP = document.createElement('p');
+                    trailingP.innerHTML = '<br>';
+                    editor.appendChild(trailingP);
+                }
+
+                if (typeof isQuillModeActive !== 'undefined' && isQuillModeActive && typeof quillNoteEditor !== 'undefined' && quillNoteEditor) {
+                    quillNoteEditor.root.innerHTML = editor.innerHTML;
+                }
+
+                if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                if (typeof notifyWatcherActivity === 'function') notifyWatcherActivity('notes');
+            }
+
+            window.handleNoteImageFilesSelected = function (event) {
+                const files = Array.from((event && event.target && event.target.files) || []).filter(
+                    f => f && f.type && f.type.startsWith('image/')
+                );
+                if (!files.length) return;
+
+                let addedCount = 0;
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function (ev) {
+                        const dataUrl = ev && ev.target ? ev.target.result : '';
+                        if (!dataUrl) return;
+                        insertFigureElementIntoEditor(dataUrl, file.name);
+                        addedCount++;
+                        if (addedCount === files.length && typeof showToast === 'function') {
+                            showToast(addedCount === 1 ? 'تمت إضافة الصورة إلى الملاحظة 🖼️' : `تمت إضافة ${addedCount} صور إلى الملاحظة 🖼️`);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            };
         })();
     </script>
 
