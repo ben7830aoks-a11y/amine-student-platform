@@ -159,6 +159,82 @@
             border-radius: 999px;
             font-size: 11px;
         }
+            /* ==================== أستاذة الذكاء الاصطناعي القابلة للسحب مع فقاعة الكلام ==================== */
+        #professorAiWidget {
+            position: fixed;
+            left: 18px;
+            bottom: 92px;
+            z-index: 9998;
+            width: 72px;
+            height: 80px;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.38));
+            transition: transform 0.15s ease;
+        }
+        #professorAiWidget.is-dragging {
+            cursor: grabbing;
+            transform: scale(1.07) rotate(-3deg);
+        }
+        #professorAiWidget .prof-bubble {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 124px;
+            max-width: 215px;
+            padding: 6px 10px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid rgba(148, 163, 184, 0.38);
+            font-size: 12px;
+            line-height: 1.4;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(2, 6, 23, 0.45);
+            pointer-events: none;
+            white-space: normal;
+            z-index: 9999;
+        }
+        #professorAiWidget .prof-bubble::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0 6px;
+            border-style: solid;
+            border-color: #0f172a transparent transparent transparent;
+        }
+        #professorAiWidget .prof-bubble.hidden {
+            display: none;
+        }
+        #professorAiWidget.state-idle .prof-head {
+            animation: profFemaleBob 2.8s ease-in-out infinite;
+            transform-origin: 60px 68px;
+        }
+        #professorAiWidget.state-thinking .prof-arm-right {
+            animation: profFemaleWrite 0.9s ease-in-out infinite;
+            transform-origin: 86px 74px;
+        }
+        #professorAiWidget.state-thinking .prof-head {
+            animation: profFemaleTilt 1.4s ease-in-out infinite;
+            transform-origin: 60px 55px;
+        }
+        @keyframes profFemaleBob {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+        @keyframes profFemaleTilt {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-6deg); }
+        }
+        @keyframes profFemaleWrite {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(-14deg); }
+        }
+
     </style>
 </head>
 <body>
@@ -1179,6 +1255,41 @@
                 <span class="m-icon">🤖</span><span>AI</span>
             </button>
         </nav>
+
+                <!-- أيقونة الأستاذة الذكية ببذلة بيضاء قابلة للسحب مع فقاعة الكلام -->
+        <div id="professorAiWidget" class="state-idle" title="أستاذة الذكاء الاصطناعي — اسحبني أو اضغط عليّ">
+            <div id="profSpeechBubble" class="prof-bubble hidden" role="status" aria-live="polite"></div>
+            <svg viewBox="0 0 120 130" width="72" height="80" aria-hidden="true">
+                <ellipse cx="60" cy="122" rx="28" ry="5" fill="rgba(0,0,0,0.28)" />
+                <g class="prof-arm-left">
+                    <path d="M34 74 Q20 84 22 98" stroke="#ffffff" stroke-width="10" stroke-linecap="round" fill="none" />
+                    <circle cx="22" cy="100" r="5.5" fill="#fde68a" />
+                </g>
+                <g class="prof-arm-right">
+                    <path d="M86 74 Q102 82 99 97" stroke="#ffffff" stroke-width="10" stroke-linecap="round" fill="none" />
+                    <circle cx="99" cy="99" r="5.5" fill="#fde68a" />
+                    <rect x="96" y="86" width="4" height="16" rx="1.5" transform="rotate(18 98 94)" fill="#ec4899" />
+                </g>
+                <g class="prof-body">
+                    <path d="M32 114 L36 74 Q60 66 84 74 L88 114 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" />
+                    <polygon points="52,72 60,86 68,72" fill="#f1f5f9" />
+                    <polygon points="57,78 63,78 65,95 60,101 55,95" fill="#ec4899" />
+                    <rect x="67" y="88" width="12" height="9" rx="1.5" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.2" />
+                </g>
+                <g class="prof-head">
+                    <circle cx="60" cy="46" r="22" fill="#fde68a" stroke="#eab308" stroke-width="1.5" />
+                    <!-- شعر الأستاذة المنسدل -->
+                    <path d="M37 44 Q37 20 60 20 Q83 20 83 44 L85 68 Q78 65 76 58 Q73 33 60 33 Q47 33 44 58 Q42 65 35 68 Z" fill="#334155" />
+                    <circle cx="60" cy="46" r="21" fill="none" />
+                    <rect x="44" y="40" width="13" height="10" rx="2.5" fill="rgba(255,255,255,0.45)" stroke="#0f172a" stroke-width="2" />
+                    <rect x="63" y="40" width="13" height="10" rx="2.5" fill="rgba(255,255,255,0.45)" stroke="#0f172a" stroke-width="2" />
+                    <line x1="57" y1="45" x2="63" y2="45" stroke="#0f172a" stroke-width="2" />
+                    <circle cx="50.5" cy="45" r="2.2" fill="#0f172a" />
+                    <circle cx="69.5" cy="45" r="2.2" fill="#0f172a" />
+                    <path d="M53 55 Q60 60 67 55" stroke="#be185d" stroke-width="2" stroke-linecap="round" fill="none" />
+                </g>
+            </svg>
+        </div>
 
         <!-- أيقونة الروبوت الذكي العائم المراقب -->
         <div id="floatingBotWrapper" class="floating-bot-wrapper">
@@ -2649,6 +2760,142 @@
                     }
                 }, true);
             });
+        })();
+    </script>
+
+    <script>
+        (function initDraggableProfessorAi() {
+            const el = document.getElementById('professorAiWidget');
+            const bubble = document.getElementById('profSpeechBubble');
+            if (!el) return;
+
+            let isPointerDown = false;
+            let movedDistance = 0;
+            let startX = 0, startY = 0;
+            let originLeft = 0, originTop = 0;
+            let bubbleTimer = null;
+
+            function syncBubbleAlignment() {
+                if (!bubble || bubble.classList.contains('hidden')) return;
+                const widgetRect = el.getBoundingClientRect();
+                const bubbleWidth = bubble.offsetWidth || 150;
+                const center = widgetRect.left + widgetRect.width / 2;
+                const half = bubbleWidth / 2;
+                const pad = 10;
+
+                let offsetX = 0;
+                if (center - half < pad) {
+                    offsetX = pad - (center - half);
+                } else if (center + half > window.innerWidth - pad) {
+                    offsetX = (window.innerWidth - pad) - (center + half);
+                }
+                bubble.style.left = `calc(50% + ${Math.round(offsetX)}px)`;
+            }
+
+            window.sayProfessorBubble = function (text, durationMs = 2800) {
+                if (!bubble) return;
+                bubble.textContent = String(text || '').trim();
+                if (!bubble.textContent) return;
+                bubble.classList.remove('hidden');
+                syncBubbleAlignment();
+
+                if (bubbleTimer) clearTimeout(bubbleTimer);
+                if (durationMs > 0) {
+                    bubbleTimer = setTimeout(() => {
+                        bubble.classList.add('hidden');
+                    }, durationMs);
+                }
+            };
+
+            window.hideProfessorBubble = function () {
+                if (!bubble) return;
+                if (bubbleTimer) clearTimeout(bubbleTimer);
+                bubble.classList.add('hidden');
+            };
+
+            try {
+                const savedPos = JSON.parse(localStorage.getItem('profAiWidgetPos') || 'null');
+                if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
+                    el.style.left = savedPos.left + 'px';
+                    el.style.top = savedPos.top + 'px';
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                }
+            } catch (_) {}
+
+            function clampPosition(left, top) {
+                const pad = 8;
+                const maxLeft = Math.max(pad, window.innerWidth - el.offsetWidth - pad);
+                const maxTop = Math.max(pad, window.innerHeight - el.offsetHeight - pad);
+                return {
+                    left: Math.min(Math.max(pad, left), maxLeft),
+                    top: Math.min(Math.max(pad, top), maxTop)
+                };
+            }
+
+            el.addEventListener('pointerdown', (e) => {
+                isPointerDown = true;
+                movedDistance = 0;
+                const rect = el.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                originLeft = rect.left;
+                originTop = rect.top;
+                el.style.left = rect.left + 'px';
+                el.style.top = rect.top + 'px';
+                el.style.right = 'auto';
+                el.style.bottom = 'auto';
+                el.classList.add('is-dragging');
+                el.setPointerCapture(e.pointerId);
+                syncBubbleAlignment();
+            });
+
+            el.addEventListener('pointermove', (e) => {
+                if (!isPointerDown) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                movedDistance += Math.hypot(dx, dy);
+                const next = clampPosition(originLeft + dx, originTop + dy);
+                el.style.left = next.left + 'px';
+                el.style.top = next.top + 'px';
+                syncBubbleAlignment();
+            });
+
+            el.addEventListener('pointerup', (e) => {
+                if (!isPointerDown) return;
+                isPointerDown = false;
+                el.classList.remove('is-dragging');
+                try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+
+                const rect = el.getBoundingClientRect();
+                const clamped = clampPosition(rect.left, rect.top);
+                el.style.left = clamped.left + 'px';
+                el.style.top = clamped.top + 'px';
+                syncBubbleAlignment();
+
+                try {
+                    localStorage.setItem('profAiWidgetPos', JSON.stringify(clamped));
+                } catch (_) {}
+
+                if (movedDistance < 6) {
+                    const nextThinking = !el.classList.contains('state-thinking');
+                    window.setProfessorAiState(nextThinking ? 'thinking' : 'idle');
+                    window.sayProfessorBubble(
+                        nextThinking ? 'أراجع المسألة الآن...' : 'جاهزة للمساعدة العلمية!'
+                    );
+                }
+            });
+
+            window.setProfessorAiState = function (state) {
+                const isThinking = state === 'thinking';
+                el.classList.remove('state-idle', 'state-thinking');
+                el.classList.add(isThinking ? 'state-thinking' : 'state-idle');
+                if (isThinking) {
+                    window.sayProfessorBubble('جاري التحليل والحساب...', 0);
+                } else {
+                    window.hideProfessorBubble();
+                }
+            };
         })();
     </script>
 
