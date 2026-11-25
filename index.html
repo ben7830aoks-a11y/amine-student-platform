@@ -323,6 +323,44 @@
             border-radius: 10px;
             padding: 12px;
         }
+        /* ==================== قسم معالجات PDF داخل بناء مشاريع ==================== */
+        .pdf-tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .pdf-tool-card {
+            background: var(--bg-dark, #0f172a);
+            border: 1px solid var(--border, #334155);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .pdf-tool-card h4 {
+            color: var(--accent, #38bdf8);
+            font-size: 14px;
+            margin: 0;
+        }
+        .pdf-tool-card p {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.55;
+            margin: 0;
+        }
+        .pdf-tool-status {
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: #e2e8f0;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+
         .adv-ai-output {
             margin-top: 10px;
             padding: 10px 12px;
@@ -488,6 +526,7 @@
                     <button class="subnav-btn" id="subBtnNotes" onclick="showSubTab('notes', this)">📝 دفتر الملاحظات</button>
                     <button class="subnav-btn" id="subBtnWorkshop" onclick="showSubTab('workshop', this)">🛠️ ورشة المهام</button>
                     <button class="subnav-btn" id="subBtnImg2Vid" onclick="showSubTab('img2vid', this)">🎬 تحويل صور إلى فيديوهات</button>
+                    <button class="subnav-btn" id="subBtnPdfTools" onclick="showSubTab('pdfTools', this)">📄 معالجات pdf</button>
                 </div>
 
                 <!-- الآلة الحاسبة والرسوم البيانية -->
@@ -965,6 +1004,53 @@
       </div>
     </div>
   </section>
+                </div>
+
+                <!-- نافذة معالجات pdf -->
+                <div id="subtab-pdfTools" class="subtab-content hidden">
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h3 style="margin:0 0 4px;">📄 معالجات pdf</h3>
+                                <p style="font-size:13px; color:#94a3b8; margin:0;">أدوات سريعة لإدارة ومعالجة ملفات PDF والصور والملاحظات داخل بناء المشاريع.</p>
+                            </div>
+                        </div>
+
+                        <div class="pdf-tools-grid">
+                            <div class="pdf-tool-card">
+                                <h4>🔗 دمج / فحص ملفات PDF</h4>
+                                <p>اختر ملف PDF واحداً أو أكثر لفحص عدد الصفحات وترتيب الملفات وتجهيزها للمشروع.</p>
+                                <input type="file" id="pdfMergeFilesInput" accept="application/pdf,.pdf" multiple style="font-size:12px; color:#e2e8f0;">
+                                <button type="button" class="btn" onclick="inspectSelectedPdfs()" style="padding:8px 12px; font-size:12px;">فحص وتجهيز الملفات</button>
+                            </div>
+
+                            <div class="pdf-tool-card">
+                                <h4>✂️ تقسيم / استخراج نطاق صفحات</h4>
+                                <p>حدد نطاق الصفحات المطلوب (مثال: 1-3 أو 2,4) واستخرج ملخص التحديد لمشروعك.</p>
+                                <input type="file" id="pdfSplitFileInput" accept="application/pdf,.pdf" style="font-size:12px; color:#e2e8f0;">
+                                <input type="text" id="pdfPageRangeInput" placeholder="مثال: 1-3" style="padding:8px 10px; background:var(--card-bg); color:#fff; border:1px solid var(--border); border-radius:8px; font-size:12px;">
+                                <button type="button" class="btn" onclick="preparePdfSplitRange()" style="padding:8px 12px; font-size:12px; background:#0284c7;">تحديد الصفحات</button>
+                            </div>
+
+                            <div class="pdf-tool-card">
+                                <h4>🖼️ تحويل صور إلى صفحة للطباعة / PDF</h4>
+                                <p>اختر صوراً لتجميعها في صفحة جاهزة للطباعة أو الحفظ كـ PDF عبر المتصفح.</p>
+                                <input type="file" id="pdfImagesToSheetInput" accept="image/*" multiple style="font-size:12px; color:#e2e8f0;">
+                                <button type="button" class="btn" onclick="buildPrintableImagesPdfView()" style="padding:8px 12px; font-size:12px; background:#10b981;">توليد صفحة PDF للطباعة</button>
+                            </div>
+
+                            <div class="pdf-tool-card">
+                                <h4>📝 إرسال تقرير المعالجة للملاحظات</h4>
+                                <p>انقل ملخص معالجة ملفات PDF مباشرة إلى دفتر الملاحظات أو أضفها كمهمة في الورشة.</p>
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <button type="button" class="send-to-note-btn" onclick="sendPdfSummaryToNote()" style="flex:1;">📝 للملاحظات</button>
+                                    <button type="button" class="copy-mini-btn" onclick="sendPdfSummaryToWorkshop()" style="flex:1;">🛠️ لمهمة</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="pdfToolsStatusBox" class="pdf-tool-status">جاهز لمعالجة ملفات PDF. اختر أداة من البطاقات أعلاه.</div>
+                    </div>
                 </div>
             </div>
 
@@ -2947,29 +3033,164 @@
 
     <script>
         (function () {
+            window.wantsSourcesInPrompt = function (text) {
+                const t = String(text || "").toLowerCase();
+                return /(مرجع|مراجع|مصدر|مصادر|بحث|أبحاث|دراسة|دراسات|اقتباس|اقتباسات|موسوعة|ويكيبيديا|openalex|source|sources|reference|references|citation|citations|paper|papers)/i.test(t);
+            };
+
+            window.isSimpleArithmeticPrompt = function (text) {
+                const cleaned = String(text || "")
+                    .replace(/^(احسب|ما هو|ما ناتج|كم يساوي|يساوي|calculate|compute|what is)\s+/i, "")
+                    .replace(/[؟?=.،]+$/g, "")
+                    .trim();
+                return /^[0-9]+(?:\s*[+\-*/^().%×÷]\s*[0-9]+)+$/.test(cleaned);
+            };
+
+            window.formatDirectAiAnswer = function (questionText, rawReplyText) {
+                const q = String(questionText || "").trim();
+                const reply = String(rawReplyText || "").trim();
+                const wantsRefs = window.wantsSourcesInPrompt(q);
+
+                if (!wantsRefs && window.isSimpleArithmeticPrompt(q) && typeof window.evaluateScienceMath === "function") {
+                    const exprMatch = q.match(/[0-9]+(?:\s*[+\-*/^().%×÷]\s*[0-9]+)+/);
+                    if (exprMatch) {
+                        const normalizedExpr = exprMatch[0].replace(/×/g, "*").replace(/÷/g, "/");
+                        const calc = window.evaluateScienceMath(normalizedExpr);
+                        if (calc && calc.ok && typeof calc.value !== "undefined") {
+                            return "يساوي " + calc.value;
+                        }
+                    }
+                }
+
+                if (!wantsRefs && reply) {
+                    const stripped = reply
+                        .replace(/\[?المراجع العلمية المرفقة:[\s\S]*$/i, "")
+                        .replace(/(?:^|
+)\s*(?:المراجع|المصادر|References|Sources)\s*:[\s\S]*$/i, "")
+                        .trim();
+                    return stripped || reply;
+                }
+
+                return reply;
+            };
+
+            function appendAiBubble(containerId, role, text) {
+                const box = document.getElementById(containerId);
+                if (!box) return;
+                const row = document.createElement("div");
+                row.style.cssText = role === "user"
+                    ? "margin:8px 0; padding:9px 12px; border-radius:8px; background:rgba(37,99,235,0.22); border:1px solid rgba(56,189,248,0.35); color:#f8fafc; font-size:13px;"
+                    : "margin:8px 0; padding:9px 12px; border-radius:8px; background:rgba(15,23,42,0.92); border:1px solid rgba(148,163,184,0.3); color:#e2e8f0; font-size:13px; white-space:pre-wrap;";
+                const label = document.createElement("strong");
+                label.style.color = role === "user" ? "#38bdf8" : "#34d399";
+                label.textContent = role === "user" ? "أنت: " : "الذكاء الاصطناعي: ";
+                const body = document.createElement("span");
+                body.textContent = text;
+                row.append(label, body);
+                box.appendChild(row);
+                box.scrollTop = box.scrollHeight;
+            }
+
+            window.askAiDirectEngine = async function (questionText, targetChatContainerId) {
+                const q = String(questionText || "").trim();
+                if (!q) return "";
+                const includeRefs = window.wantsSourcesInPrompt(q);
+
+                if (window.isSimpleArithmeticPrompt(q) && typeof window.evaluateScienceMath === "function") {
+                    const exprMatch = q.match(/[0-9]+(?:\s*[+\-*/^().%×÷]\s*[0-9]+)+/);
+                    if (exprMatch) {
+                        const normalizedExpr = exprMatch[0].replace(/×/g, "*").replace(/÷/g, "/");
+                        const calc = window.evaluateScienceMath(normalizedExpr);
+                        if (calc && calc.ok && typeof calc.value !== "undefined") {
+                            const ans = includeRefs
+                                ? `يساوي ${calc.value}
+المصدر: محرك الحساب الرياضي (${calc.engine})`
+                                : `يساوي ${calc.value}`;
+                            if (targetChatContainerId) appendAiBubble(targetChatContainerId, "ai", ans);
+                            return ans;
+                        }
+                    }
+                }
+
+                let sciCtx = "";
+                if (includeRefs && typeof window.buildScientificAiContext === "function") {
+                    try {
+                        sciCtx = await window.buildScientificAiContext(q);
+                    } catch (_) {}
+                }
+
+                if (typeof window.callGeminiOrAiModel === "function") {
+                    try {
+                        const promptToSend = includeRefs && sciCtx
+                            ? `${q}
+[المراجع المطلوبة:
+${sciCtx}
+]`
+                            : `${q}
+[أجب بشكل مباشر ومختصر دون ذكر مراجع أو مصادر إلا إذا طلب المستخدم ذلك صراحة.]`;
+                        const modelOut = await window.callGeminiOrAiModel(promptToSend);
+                        if (modelOut && String(modelOut).trim()) {
+                            const finalReply = window.formatDirectAiAnswer(q, String(modelOut).trim());
+                            if (targetChatContainerId) appendAiBubble(targetChatContainerId, "ai", finalReply);
+                            return finalReply;
+                        }
+                    } catch (_) {}
+                }
+
+                let fallbackReply = "";
+                if (includeRefs && sciCtx) {
+                    fallbackReply = `النتيجة والمراجع لـ "${q}":
+${sciCtx}`;
+                } else {
+                    const sym = typeof window.solveSymbolicScience === "function" ? window.solveSymbolicScience(q) : null;
+                    if (sym) {
+                        fallbackReply = `النتيجة: ${sym}`;
+                    } else if (typeof window.searchWikipediaScience === "function") {
+                        const wiki = (await window.searchWikipediaScience(q, "ar")) || (await window.searchWikipediaScience(q, "en"));
+                        if (wiki && wiki.extract) {
+                            const firstSent = String(wiki.extract).split(/[.،
+]/)[0].trim();
+                            fallbackReply = firstSent || String(wiki.extract).slice(0, 240);
+                        }
+                    }
+                    if (!fallbackReply) {
+                        fallbackReply = `تم استلام سؤالك: "${q}". اكتب "مع المراجع" إذا أردت مصادر وأبحاثاً مرفقة.`;
+                    }
+                }
+
+                const cleanOut = window.formatDirectAiAnswer(q, fallbackReply);
+                if (targetChatContainerId) appendAiBubble(targetChatContainerId, "ai", cleanOut);
+                return cleanOut;
+            };
+
             document.addEventListener("DOMContentLoaded", function () {
                 const aiInput = document.getElementById("aiChatInput");
                 const aiSection = document.getElementById("section-aiAssistant");
                 if (!aiInput || !aiSection) return;
 
                 const sendBtn = aiSection.querySelector('button[onclick*="sendAiMessage"]');
-                const enhancePromptWithScientificContext = async function () {
+                const interceptDirectSend = function (e) {
                     const q = (aiInput.value || "").trim();
-                    if (!q || typeof window.buildScientificAiContext !== "function") return;
-                    try {
-                        const sciCtx = await window.buildScientificAiContext(q);
-                        if (sciCtx && !q.includes("المراجع العلمية المرفقة")) {
-                            aiInput.value = `${q}\n[المراجع العلمية المرفقة:\n${sciCtx}\n]`;
+                    if (!q) return;
+                    if (window.isSimpleArithmeticPrompt(q) || window.wantsSourcesInPrompt(q)) {
+                        if (e) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
                         }
-                    } catch (_) {}
+                        appendAiBubble("aiChatMessages", "user", q);
+                        aiInput.value = "";
+                        window.askAiDirectEngine(q, "aiChatMessages");
+                    } else if (typeof window.buildScientificAiContext === "function") {
+                        // لا نُرفق مراجع تلقائياً ما لم يطلبها المستخدم
+                    }
                 };
 
                 if (sendBtn) {
-                    sendBtn.addEventListener("click", enhancePromptWithScientificContext, true);
+                    sendBtn.addEventListener("click", interceptDirectSend, true);
                 }
                 aiInput.addEventListener("keydown", function (e) {
                     if (e.key === "Enter") {
-                        enhancePromptWithScientificContext();
+                        interceptDirectSend(e);
                     }
                 }, true);
             });
@@ -3104,16 +3325,22 @@
                 askBtn.addEventListener('pointerdown', (e) => {
                     e.stopPropagation();
                 });
-                askBtn.addEventListener('click', (e) => {
+                askBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const question = prompt('اكتب سؤالك للأستاذ:');
+                    const question = prompt('اكتب سؤالك للذكاء الاصطناعي:');
                     if (!question || !question.trim()) return;
                     const cleanQ = question.trim();
                     window.setProfessorAiState('thinking');
-                    setTimeout(() => {
+                    try {
+                        const ans = typeof window.askAiDirectEngine === 'function'
+                            ? await window.askAiDirectEngine(cleanQ, 'aiChatMessages')
+                            : ('سؤال: ' + cleanQ);
                         window.setProfessorAiState('idle');
-                        window.sayProfessorBubble('سؤال جيد: "' + cleanQ + '" — راجع الملاحظات أو المساعد AI للتفصيل.', 4500);
-                    }, 900);
+                        window.sayProfessorBubble(ans || ('سؤال: ' + cleanQ), 5500);
+                    } catch (_) {
+                        window.setProfessorAiState('idle');
+                        window.sayProfessorBubble('تعذر الحصول على إجابة الآن.', 3500);
+                    }
                 });
             }
 
@@ -3324,5 +3551,105 @@
         })();
     </script>
 
+    <script>
+        (function () {
+            window.__lastPdfProcessorReport = 'لم يتم تنفيذ عملية على ملفات PDF بعد.';
+
+            function setPdfStatus(msg) {
+                window.__lastPdfProcessorReport = msg;
+                const box = document.getElementById('pdfToolsStatusBox');
+                if (box) box.textContent = msg;
+            }
+
+            window.inspectSelectedPdfs = async function () {
+                const input = document.getElementById('pdfMergeFilesInput');
+                const files = Array.from(input && input.files ? input.files : []);
+                if (!files.length) {
+                    setPdfStatus('يرجى اختيار ملف PDF واحد أو أكثر أولاً.');
+                    return;
+                }
+                const details = [];
+                for (let i = 0; i < files.length; i++) {
+                    const f = files[i];
+                    let pageGuess = 'غير محدد';
+                    try {
+                        const text = await f.text();
+                        const matches = text.match(/\/Type\s*\/Page\b/g);
+                        if (matches && matches.length) {
+                            pageGuess = String(matches.length) + ' صفحة تقريباً';
+                        }
+                    } catch (_) {}
+                    const kb = (f.size / 1024).toFixed(1);
+                    details.push((i + 1) + ') ' + f.name + ' (' + kb + ' KB — ' + pageGuess + ')');
+                }
+                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:
+' + details.join('
+'));
+            };
+
+            window.preparePdfSplitRange = function () {
+                const fileInput = document.getElementById('pdfSplitFileInput');
+                const rangeInput = document.getElementById('pdfPageRangeInput');
+                const file = fileInput && fileInput.files && fileInput.files[0];
+                const range = String(rangeInput && rangeInput.value ? rangeInput.value : '').trim();
+                if (!file) {
+                    setPdfStatus('اختر ملف PDF المراد تحديد صفحاته.');
+                    return;
+                }
+                if (!range) {
+                    setPdfStatus('أدخل نطاق الصفحات (مثال: 1-3 أو 2,5).');
+                    return;
+                }
+                setPdfStatus('تم تجهيز نطاق الصفحات [' + range + '] للملف: ' + file.name + '. يمكنك استخدام نافذة الطباعة/PDF لحفظ النطاق المطلوب.');
+            };
+
+            window.buildPrintableImagesPdfView = async function () {
+                const input = document.getElementById('pdfImagesToSheetInput');
+                const files = Array.from(input && input.files ? input.files : []).filter(f => f.type && f.type.startsWith('image/'));
+                if (!files.length) {
+                    setPdfStatus('اختر صورة واحدة أو أكثر لتحويلها إلى صفحة PDF.');
+                    return;
+                }
+                const dataUrls = await Promise.all(files.map(file => new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve({ name: file.name, url: reader.result });
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(file);
+                })));
+                const valid = dataUrls.filter(Boolean);
+                const printWin = window.open('', '_blank');
+                if (!printWin) {
+                    setPdfStatus('تم تجهيز ' + valid.length + ' صورة، يرجى السماح بالنوافذ المنبثقة لفتح صفحة الحفظ كـ PDF.');
+                    return;
+                }
+                const imgsHtml = valid.map(item =>
+                    '<div style="page-break-inside:avoid;margin-bottom:18px;text-align:center;"><img src="' + item.url + '" style="max-width:100%;max-height:85vh;border:1px solid #cbd5e1;border-radius:6px;"><div style="font-size:12px;color:#475569;margin-top:6px;">' + item.name.replace(/</g, '&lt;') + '</div></div>'
+                ).join('');
+                printWin.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>معالجات pdf - تصدير</title></head><body style="font-family:Tahoma,sans-serif;padding:20px;"><h3>صفحة صور المشروع (PDF)</h3>' + imgsHtml + '<script>window.onload=function(){window.print();};<\/script></body></html>');
+                printWin.document.close();
+                setPdfStatus('تم فتح صفحة ' + valid.length + ' صورة جاهزة للحفظ كـ PDF عبر الطباعة.');
+            };
+
+            window.sendPdfSummaryToNote = function () {
+                const editor = document.getElementById('wordRichEditor');
+                if (!editor) return;
+                const p = document.createElement('p');
+                p.textContent = 'تقرير معالجات pdf: ' + window.__lastPdfProcessorReport;
+                editor.appendChild(p);
+                if (typeof updateCurrentNoteContent === 'function') updateCurrentNoteContent();
+                if (typeof showToast === 'function') showToast('تم إرسال تقرير PDF إلى دفتر الملاحظات');
+            };
+
+            window.sendPdfSummaryToWorkshop = function () {
+                const taskInput = document.getElementById('taskInput');
+                if (taskInput && typeof addTask === 'function') {
+                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('
+')[0].slice(0, 80);
+                    addTask();
+                    if (typeof showToast === 'function') showToast('تمت إضافة مهمة مراجعة PDF');
+                }
+            };
+        })();
+    </script>
 </body>
 </html>
