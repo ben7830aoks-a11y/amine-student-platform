@@ -1,4 +1,83 @@
 /* ==================== الربط المجاني بالـ ID والدعوات والمشاريع ==================== */
+let roomMessagesPollTimerId = null;
+const seenStudyMessageIds = new Set();
+
+function registerSeenStudyMessage(msgId) {
+    if (!msgId) return;
+    seenStudyMessageIds.add(String(msgId));
+    if (seenStudyMessageIds.size > 500) {
+        const firstKey = seenStudyMessageIds.values().next().value;
+        seenStudyMessageIds.delete(firstKey);
+    }
+}
+
+async function sendRoomMessageToFreeDb(messagePayload) {
+    if (!freeDbUrl || !firebaseAuthToken || !messagePayload) return false;
+    const roomKey = sanitizeDbKey(battleRoomInfo?.code || 'ROOM-101');
+    const msgKey = sanitizeDbKey(messagePayload.id || `msg_${Date.now()}`);
+
+    try {
+        await fetch(buildDbEndpoint(`rooms/${roomKey}`), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: String(battleRoomInfo?.name || 'غرفة المذاكرة').slice(0, 150),
+                updatedAt: Date.now()
+            })
+        });
+
+        const res = await fetch(buildDbEndpoint(`rooms/${roomKey}/messages/${msgKey}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(messagePayload)
+        });
+        if (!res.ok) throw new Error('WRITE_DENIED');
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function pollRoomMessagesFromFreeDb() {
+    if (!freeDbUrl || !firebaseAuthToken) return;
+    const roomKey = sanitizeDbKey(battleRoomInfo?.code || 'ROOM-101');
+    const myId = currentUser?.id || '#1001';
+
+    try {
+        const res = await fetch(buildDbEndpoint(`rooms/${roomKey}/messages`));
+        if (!res.ok) return;
+        const raw = await res.json();
+        if (!raw || typeof raw !== 'object') return;
+
+        const items = Object.entries(raw)
+            .map(([key, val]) => ({ key, ...(val || {}) }))
+            .filter(m => m && m.text && m.senderId)
+            .sort((a, b) => Number(a.sentAt || 0) - Number(b.sentAt || 0));
+
+        items.forEach(m => {
+            const uniqueId = String(m.id || m.key || '');
+            if (!uniqueId || seenStudyMessageIds.has(uniqueId)) return;
+            registerSeenStudyMessage(uniqueId);
+
+            if (m.senderId === myId) return;
+            if (typeof appendStudyChatMessage === 'function') {
+                appendStudyChatMessage(
+                    `${m.sender || 'طالب'} (${m.senderId})`,
+                    String(m.text),
+                    false
+                );
+            }
+        });
+    } catch (e) {}
+}
+
+function startRoomMessagesPolling() {
+    clearInterval(roomMessagesPollTimerId);
+    if (!freeDbUrl || !firebaseAuthToken) return;
+    pollRoomMessagesFromFreeDb();
+    roomMessagesPollTimerId = setInterval(pollRoomMessagesFromFreeDb, 3000);
+}
+
 function cleanDbBaseUrl(raw) {
     return String(raw || '').trim().replace(/\/+$/, '');
 }
@@ -89,6 +168,7 @@ function connectFreeRealtimeDb() {
     syncSharedProjectsWithFreeDb(true);
     startInvitePolling();
     startProjectsPolling();
+    startRoomMessagesPolling();
     showToast('تم تفعيل الربط الآمن والمزامنة 🌐');
 }
 
@@ -336,6 +416,7 @@ function applyJoinedRoomState(roomCode, roomName, inviterId, inviterName) {
     if (freeDbUrl && firebaseAuthToken) {
         startInvitePolling();
         startProjectsPolling();
+        startRoomMessagesPolling();
         syncSharedProjectsWithFreeDb(false);
     }
 }
@@ -466,6 +547,7 @@ function initRealtimeBridge() {
         syncSharedProjectsWithFreeDb(false);
         startInvitePolling();
         startProjectsPolling();
+        startRoomMessagesPolling();
     } else if (freeDbUrl) {
         updateFreeDbStatusUi('الحالة: أدخل UID ورمز Auth ID Token لتفعيل المزامنة الآمنة');
     }
@@ -475,8 +557,10 @@ function initRealtimeBridge() {
             const data = event.data; if (!data || !data.type) return;
             if (data.type === 'peer_join' && data.peer && (!currentUser || data.peer.studentId !== currentUser.id)) {
                 if (!studyRoomFriends.some(f => f.studentId === data.peer.studentId)) { studyRoomFriends.push(data.peer); saveStudyRoomFriends(); renderStudyRoomMembers(); appendStudyChatMessage('جسر الدعوة 🌐', `انضم (${data.peer.name}) إلى الغرفة!`, false); }
-            } else if (data.type === 'room_chat' && data.sender && (!currentUser || data.senderId !== currentUser.id)) appendStudyChatMessage(data.sender, data.text, false);
-            else if (data.type === 'live_invite' && data.invite && currentUser && data.toId === currentUser.id) handleIncomingInvite(data.invite);
+            } else if (data.type === 'room_chat' && data.sender && (!currentUser || data.senderId !== currentUser.id)) {
+                if (data.id) registerSeenStudyMessage(data.id);
+                appendStudyChatMessage(data.sender, data.text, false);
+            } else if (data.type === 'live_invite' && data.invite && currentUser && data.toId === currentUser.id) handleIncomingInvite(data.invite);
             else if (data.type === 'shared_projects_updated' && Array.isArray(data.projects)) {
                 sharedProjects = data.projects;
                 saveSharedProjects(false);
