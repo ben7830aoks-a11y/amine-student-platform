@@ -707,6 +707,7 @@ window.syncAiOpponentUi = function syncAiOpponentUi(rawId) {
     const nameInp = document.getElementById('ai2NameInput');
     const srcInp = document.getElementById('ai2SourcesInput');
 
+    if (inpId) inpId.value = normId;
     if (badge) badge.textContent = `الخصم المرتبط: ${profile.name} (${normId})`;
     if (titleSpan) titleSpan.textContent = `${profile.name} ${normId}`;
     if (nameInp) nameInp.value = profile.agentName || `وكيل الخصم — ${profile.name} (${normId})`;
@@ -726,7 +727,7 @@ window.addAiOpponentById = function addAiOpponentById() {
     }
     window.syncAiOpponentUi(normId);
     wbToast(`تم ربط الخصم ${window.opponentRefsRegistry[normId].name} (${normId}) ومراجعه بنجاح 🆔`);
-};    if (inpId) inpId.value = normId;
+};
 
 window.saveOpponentIdRefs = function saveOpponentIdRefs() {
     const normId = window.normalizeOpponentId(document.getElementById('aiOpponentIdInput')?.value || window.activeAiOpponentId) || '#3109';
