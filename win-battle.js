@@ -165,10 +165,41 @@ function wbGetCorrectOptionInfo(qObj) {
     return { index: safeIdx, letter, text, formatted: `(${letter}) ${text}` };
 }
 
+function wbSyncRoomLiveState(roomCodeOverride = '') {
+    const cleanCode = String(roomCodeOverride || window.battleRoomInfo?.code || '#ROOM-101')
+        .replace(/^#/, '')
+        .trim();
+    if (typeof window.attachBattleRoomSyncListeners === 'function' && cleanCode) {
+        try { window.attachBattleRoomSyncListeners(cleanCode); } catch (_) {}
+    }
+    if (typeof window.publishBattleStateNow === 'function') {
+        try { window.publishBattleStateNow(); } catch (_) {}
+    }
+}
+
+function wbRecordMoveLive(movePayload) {
+    const cleanCode = String(window.battleRoomInfo?.code || '#ROOM-101')
+        .replace(/^#/, '')
+        .trim();
+    if (typeof window.recordBattleMoveToRoom === 'function' && cleanCode) {
+        try { window.recordBattleMoveToRoom(cleanCode, movePayload); } catch (_) {}
+    }
+}
+
+function wbShuffleArray(arr) {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+}
+
 /* ==================== التحكم بساحة المعارك ==================== */
 window.switchArenaMode = function switchArenaMode(mode) {
-    window.currentArenaSubMode = mode === 'ai-vs-ai' ? 'ai-vs-ai' : 'classic';
-    const isClassic = window.currentArenaSubMode === 'classic';
+    const normalized = (mode === 'aiVsAi' || mode === 'ai-vs-ai') ? 'aiVsAi' : 'classic';
+    window.currentArenaSubMode = normalized;
+    const isClassic = normalized === 'classic';
 
     const tabClassic = document.getElementById('arenaTabClassic');
     const tabAi = document.getElementById('arenaTabAiVsAi');
@@ -236,7 +267,8 @@ window.submitCreateBattleRoom = function submitCreateBattleRoom() {
     const roundsVal = parseInt(document.getElementById('newBattleRoomRounds')?.value || '3', 10) || 3;
     const domVal = document.getElementById('newBattleRoomDomain')?.value || 'programming';
 
-    const code = `#ROOM-${Math.floor(100 + Math.random() * 900)}`;
+    const codeNum = Math.floor(100 + Math.random() * 900);
+    const code = `#ROOM-${codeNum}`;
     window.battleRoomInfo = { name: rawName || `غرفة التحدي ${code}`, code };
     window.battleTotalRounds = Math.max(1, Math.min(roundsVal, 20));
 
@@ -246,6 +278,7 @@ window.submitCreateBattleRoom = function submitCreateBattleRoom() {
     window.updateBattleRoomBanner();
     window.selectBattleSize(modeVal);
     window.closeCreateBattleRoomModal();
+    wbSyncRoomLiveState(`ROOM-${codeNum}`);
     wbToast(`تم إنشاء ${window.battleRoomInfo.name} (${code}) 🏠`);
 };
 
@@ -282,19 +315,24 @@ window.submitAddCompetitor = function submitAddCompetitor() {
 
     let name = raw;
     let studentId = '#' + Math.floor(2000 + Math.random() * 7999);
-    const idMatch = raw.match(/#\d{2,6}/);
-    if (idMatch) {
-        studentId = idMatch[0];
-        const cleanName = raw.replace(idMatch[0], '').trim();
+    const idMatch = raw.match(/#?[A-Za-z0-9_-]{2,12}/);
+    if (/#\d{2,6}/.test(raw)) {
+        const m = raw.match(/#\d{2,6}/);
+        studentId = m[0];
+        const cleanName = raw.replace(m[0], '').trim();
         name = cleanName || `طالب ${studentId}`;
     } else if (/^\d{3,6}$/.test(raw)) {
         studentId = '#' + raw;
+        name = `طالب ${studentId}`;
+    } else if (idMatch && raw.replace(idMatch[0], '').trim() === '') {
+        studentId = idMatch[0].startsWith('#') ? idMatch[0] : '#' + idMatch[0];
         name = `طالب ${studentId}`;
     }
 
     targetList.push({ name, studentId, score: 0, isUser: false, isCustom: true });
     window.closeAddCompetitorModal();
     window.setupBattleTeams();
+    wbSyncRoomLiveState();
     wbToast(`تمت إضافة ${name} (${studentId}) إلى الفريق ${team === 'A' ? 'Alpha' : 'Omega'} ➕`);
 };
 
@@ -302,6 +340,7 @@ window.removeCustomCompetitor = function removeCustomCompetitor(team, idx) {
     if (team === 'A') window.customTeamA.splice(idx, 1);
     else window.customTeamB.splice(idx, 1);
     window.setupBattleTeams();
+    wbSyncRoomLiveState();
     wbToast('تمت إزالة المتنافس');
 };
 
@@ -320,12 +359,14 @@ window.selectBattleSize = function selectBattleSize(size) {
     window.customTeamB = window.customTeamB.slice(0, window.battleSize);
 
     window.setupBattleTeams();
+    wbSyncRoomLiveState();
 };
 
 window.setupBattleTeams = function setupBattleTeams() {
     const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
     const userName = user ? user.username : (document.getElementById('navUsername')?.textContent?.trim() || 'أنت');
-    const userId = user ? user.id : '#1001';
+    const rawUserId = user ? user.id : (localStorage.getItem('ssp_ff_player_id') || '1001');
+    const userId = String(rawUserId || '#1001').startsWith('#') ? String(rawUserId) : `#${String(rawUserId).replace(/^#/, '')}`;
 
     const poolA = [
         { name: userName, studentId: userId, isUser: true },
@@ -446,10 +487,10 @@ window.startNewBattle = function startNewBattle() {
         return;
     }
 
-    sourcePool.sort(() => Math.random() - 0.5);
+    const shuffled = wbShuffleArray(sourcePool);
     window.battleQuestions = [];
     for (let i = 0; i < window.battleTotalRounds; i++) {
-        window.battleQuestions.push(sourcePool[i % sourcePool.length]);
+        window.battleQuestions.push(shuffled[i % shuffled.length]);
     }
 
     window.battleRoundIndex = 0;
@@ -459,6 +500,7 @@ window.startNewBattle = function startNewBattle() {
     document.getElementById('battleActiveArea')?.classList.remove('hidden');
 
     window.loadBattleRound();
+    wbSyncRoomLiveState();
     wbToast(`بدأت المعركة (${window.battleTotalRounds} جولات) في ${window.battleRoomInfo.name} 🔥`);
 };
 
@@ -554,6 +596,7 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
             } else {
                 window.battleRoundIndex++;
                 window.loadBattleRound();
+                wbSyncRoomLiveState();
             }
         }
     }, 1000);
@@ -571,6 +614,7 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
     const correctInfo = wbGetCorrectOptionInfo(qObj);
     const isCorrect = Number(choiceIdx) === correctInfo.index;
     const feedback = document.getElementById('battleRoundFeedback');
+    const chosenText = (Array.isArray(qObj.options) && qObj.options[choiceIdx]) ? qObj.options[choiceIdx] : String(choiceIdx);
 
     let rivalSuccess = false;
     if (isCorrect) {
@@ -597,7 +641,9 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
         rivalSuccess
     });
 
+    wbRecordMoveLive({ type: 'answer', optionIndex: Number(choiceIdx), optionText: chosenText, isCorrect });
     window.renderBattleTeams();
+    wbSyncRoomLiveState();
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
@@ -627,7 +673,9 @@ window.declareCantAnswer = function declareCantAnswer() {
         rivalSuccess: true
     });
 
+    wbRecordMoveLive({ type: 'cant_answer' });
     window.renderBattleTeams();
+    wbSyncRoomLiveState();
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
@@ -657,7 +705,9 @@ window.handleRoundTimeout = function handleRoundTimeout() {
         rivalSuccess: true
     });
 
+    wbRecordMoveLive({ type: 'timeout' });
     window.renderBattleTeams();
+    wbSyncRoomLiveState();
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
@@ -715,6 +765,7 @@ window.finishBattle = function finishBattle() {
             </div>
         `;
     }
+    wbSyncRoomLiveState();
 };
 
 window.saveBattleSummaryToNote = function saveBattleSummaryToNote() {
@@ -722,8 +773,7 @@ window.saveBattleSummaryToNote = function saveBattleSummaryToNote() {
     const scoreB = window.battleTeamB.reduce((s, p) => s + (Number(p.score) || 0), 0);
     const lines = [`⚔️ ملخص معركة (${window.battleRoomInfo.name} - ${window.battleSize}v${window.battleSize}): Alpha ${scoreA} - ${scoreB} Omega`];
     window.battleLogs.forEach(l => lines.push(`• الجولة ${l.round}: ${l.question} | الصحيح: ${l.correctText}`));
-    wbAppendNote(lines.join('
-'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
+    wbAppendNote(lines.join('\n'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
 };
 
 /* ==================== معركة AI ضد AI حسب الـ ID ==================== */
