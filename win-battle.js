@@ -789,7 +789,7 @@ window.loadCurrentNoteIntoAiSource = function loadCurrentNoteIntoAiSource(slot) 
 };
 
 window.parseSourcesList = function parseSourcesList(rawText) {
-    const lines = String(rawText || '').split(/
+    const lines = String(rawText || '').split(/?
 +/).map(l => l.trim()).filter(Boolean);
     return lines.length ? lines : ['مرجع عام داعم للحجة التحليلية.'];
 };
