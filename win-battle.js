@@ -728,7 +728,6 @@ window.addAiOpponentById = function addAiOpponentById() {
     window.syncAiOpponentUi(normId);
     wbToast(`تم ربط الخصم ${window.opponentRefsRegistry[normId].name} (${normId}) ومراجعه بنجاح 🆔`);
 };
-
 window.saveOpponentIdRefs = function saveOpponentIdRefs() {
     const normId = window.normalizeOpponentId(document.getElementById('aiOpponentIdInput')?.value || window.activeAiOpponentId) || '#3109';
     const agentName = (document.getElementById('ai2NameInput')?.value || '').trim();
