@@ -531,7 +531,7 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
     battleLogs.push({
         round: battleRoundIndex + 1,
         question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}`,
+        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
         userCorrect: isCorrect,
         cantAnswer: false,
         rivalSuccess
@@ -561,7 +561,7 @@ window.declareCantAnswer = function declareCantAnswer() {
     battleLogs.push({
         round: battleRoundIndex + 1,
         question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}`,
+        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
         userCorrect: false,
         cantAnswer: true,
         rivalSuccess: true
@@ -590,7 +590,7 @@ window.handleRoundTimeout = function handleRoundTimeout() {
     battleLogs.push({
         round: battleRoundIndex + 1,
         question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}`,
+        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
         userCorrect: false,
         cantAnswer: false,
         rivalSuccess: true
@@ -661,8 +661,7 @@ window.saveBattleSummaryToNote = function saveBattleSummaryToNote() {
     const scoreB = battleTeamB.reduce((s, p) => s + (Number(p.score) || 0), 0);
     const lines = [`⚔️ ملخص معركة (${battleRoomInfo.name} - ${battleSize}v${battleSize}): Alpha ${scoreA} - ${scoreB} Omega`];
     battleLogs.forEach(l => lines.push(`• الجولة ${l.round}: ${l.question} | الصحيح: ${l.correctText}`));
-    wbAppendNote(lines.join('
-'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
+    wbAppendNote(lines.join('\n'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
 };
 
 /* ==================== معركة AI ضد AI حسب الـ ID ==================== */
@@ -672,22 +671,19 @@ window.getDefaultOpponentProfile = function getDefaultOpponentProfile(normId) {
             id: '#3109',
             name: 'ياسين قاسمي',
             agentName: 'وكيل الخصم — ياسين قاسمي (#3109)',
-            sources: 'المصدر 1: المعمارية المعيارية وقابلية التوسع تمنع إعادة البناء المكلفة.
-المصدر 2: توثيق الواجهات والاختبارات الآلية يحافظ على استقرار المشروع عند نمو الفريق.'
+            sources: 'المصدر 1: المعمارية المعيارية وقابلية التوسع تمنع إعادة البناء المكلفة.\nالمصدر 2: توثيق الواجهات والاختبارات الآلية يحافظ على استقرار المشروع عند نمو الفريق.'
         },
         '#2045': {
             id: '#2045',
             name: 'سارة منصور',
             agentName: 'وكيل الخصم — سارة منصور (#2045)',
-            sources: 'المصدر 1: تجربة المستخدم الواضحة وتقليل خطوات التفاعل يرفعان كفاءة التعلّم.
-المصدر 2: التغذية الراجعة الفورية تساعد الطالب على تصحيح المفاهيم فوراً.'
+            sources: 'المصدر 1: تجربة المستخدم الواضحة وتقليل خطوات التفاعل يرفعان كفاءة التعلّم.\nالمصدر 2: التغذية الراجعة الفورية تساعد الطالب على تصحيح المفاهيم فوراً.'
         },
         '#7312': {
             id: '#7312',
             name: 'سمير منصوري',
             agentName: 'وكيل الخصم — سمير منصوري (#7312)',
-            sources: 'المصدر 1: الموازنة بين البساطة والمرونة تجعل المشروع قابلاً للتشغيل على مختلف الأجهزة.
-المصدر 2: التحقق من المدخلات والأمان يحمي بيانات المستخدمين.'
+            sources: 'المصدر 1: الموازنة بين البساطة والمرونة تجعل المشروع قابلاً للتشغيل على مختلف الأجهزة.\nالمصدر 2: التحقق من المدخلات والأمان يحمي بيانات المستخدمين.'
         }
     };
     if (presets[normId]) return presets[normId];
@@ -695,8 +691,7 @@ window.getDefaultOpponentProfile = function getDefaultOpponentProfile(normId) {
         id: normId,
         name: `الخصم ${normId}`,
         agentName: `وكيل الخصم (${normId})`,
-        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.
-المصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.`
+        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.\nالمصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.`
     };
 };
 
@@ -789,8 +784,7 @@ window.loadCurrentNoteIntoAiSource = function loadCurrentNoteIntoAiSource(slot) 
 };
 
 window.parseSourcesList = function parseSourcesList(rawText) {
-    const lines = String(rawText || '').split(/?
-+/).map(l => l.trim()).filter(Boolean);
+    const lines = String(rawText || '').split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
     return lines.length ? lines : ['مرجع عام داعم للحجة التحليلية.'];
 };
 
@@ -922,8 +916,7 @@ window.finalizeAiDebateAndGenerateResearch = function finalizeAiDebateAndGenerat
         ...roundRecords.flatMap(rec => [`- ${rec.s1}`, `- ${rec.s2}`])
     ];
 
-    generatedBattleResearchText = lines.join('
-');
+    generatedBattleResearchText = lines.join('\n');
     window.generatedBattleResearchText = generatedBattleResearchText;
 
     const resBox = document.getElementById('aiBattleResearchResult');
