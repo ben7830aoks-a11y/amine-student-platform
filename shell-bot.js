@@ -65,15 +65,42 @@
         }
         function jumpToSection(sectionId, subTabId = null) { showMainSection(sectionId, document.getElementById(navBtnMap[sectionId])); if (sectionId === 'projects' && subTabId && subTabBtnMap[subTabId]) showSubTab(subTabId, document.getElementById(subTabBtnMap[subTabId])); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         function showMainSection(sectionId, btnEl) {
-            activeSectionId = sectionId; document.querySelectorAll('.main-section').forEach(sec => sec.classList.add('hidden')); document.getElementById('section-' + sectionId).classList.remove('hidden');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); if (btnEl) btnEl.classList.add('active');
-            if (sectionId === 'sharing') { syncSharedProjectsWithFreeDb(false); renderSharedProjects(); }
-            if (sectionId === 'studyRoom') renderStudyRoomMembers();
-            if (sectionId === 'battleArena') { setupBattleTeams(); syncAiOpponentUi(activeAiOpponentId); }
-            if (sectionId === 'aiAssistant') updateAiLibrariesBadge();
-            if (sectionId === 'projects' && activeSubTabId === 'calcGraph' && mathChartInstance) setTimeout(() => mathChartInstance.resize(), 40);
-            if (sectionId === 'projects' && activeSubTabId === 'notes') { updateNotePageSizeLabel(); if (noteViewMode === 'preview') renderFormattedNotePreview(); }
-            updateMobileNavActive(); saveNavigationState(); refreshBotLiveObservation('فتح القسم');
+            activeSectionId = sectionId;
+            document.querySelectorAll('.main-section').forEach(sec => sec.classList.add('hidden'));
+            const targetSec = document.getElementById('section-' + sectionId);
+            if (targetSec) targetSec.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            if (btnEl) btnEl.classList.add('active');
+
+            if (sectionId === 'sharing') {
+                if (typeof syncSharedProjectsWithFreeDb === 'function') syncSharedProjectsWithFreeDb(false);
+                if (typeof renderSharedProjects === 'function') renderSharedProjects();
+            }
+            if (sectionId === 'studyRoom' && typeof renderStudyRoomMembers === 'function') {
+                renderStudyRoomMembers();
+            }
+            if (sectionId === 'battleArena') {
+                if (typeof window.setupBattleTeams === 'function') window.setupBattleTeams();
+                if (typeof window.syncAiOpponentUi === 'function') {
+                    window.syncAiOpponentUi(window.activeAiOpponentId || (typeof activeAiOpponentId !== 'undefined' ? activeAiOpponentId : '#3109'));
+                }
+            }
+            if (sectionId === 'aiAssistant' && typeof updateAiLibrariesBadge === 'function') {
+                updateAiLibrariesBadge();
+            }
+            if (sectionId === 'projects' && activeSubTabId === 'calcGraph' && typeof mathChartInstance !== 'undefined' && mathChartInstance) {
+                setTimeout(() => mathChartInstance.resize(), 40);
+            }
+            if (sectionId === 'projects' && activeSubTabId === 'notes') {
+                if (typeof updateNotePageSizeLabel === 'function') updateNotePageSizeLabel();
+                if (typeof noteViewMode !== 'undefined' && noteViewMode === 'preview' && typeof renderFormattedNotePreview === 'function') {
+                    renderFormattedNotePreview();
+                }
+            }
+            updateMobileNavActive();
+            saveNavigationState();
+            refreshBotLiveObservation('فتح القسم');
         }
         function showSubTab(tabId, btnEl) {
             activeSubTabId = tabId; document.querySelectorAll('.subtab-content').forEach(t => t.classList.add('hidden')); document.getElementById('subtab-' + tabId).classList.remove('hidden');
@@ -149,8 +176,25 @@
 
         /* ==================== تهيئة عامة ==================== */
         function initWorkspaceData() {
-            gpaItems = []; renderGpaList(); initNotes(); initTasks(); initSharedProjects(); initStudyRoom(); initAiAssistant();
-            loadOpponentRefsRegistry(); syncAiOpponentUi(activeAiOpponentId); updateBattleRoomBanner(); setupBattleTeams();
+            gpaItems = [];
+            if (typeof renderGpaList === 'function') renderGpaList();
+            if (typeof initNotes === 'function') initNotes();
+            if (typeof initTasks === 'function') initTasks();
+            if (typeof initSharedProjects === 'function') initSharedProjects();
+            if (typeof initStudyRoom === 'function') initStudyRoom();
+
+            if (typeof window.initAiAssistant === 'function') {
+                window.initAiAssistant();
+            } else {
+                console.warn('Non-blocking init warning: initAiAssistant is not defined');
+            }
+
+            if (typeof window.loadOpponentRefsRegistry === 'function') window.loadOpponentRefsRegistry();
+            if (typeof window.syncAiOpponentUi === 'function') {
+                window.syncAiOpponentUi(window.activeAiOpponentId || (typeof activeAiOpponentId !== 'undefined' ? activeAiOpponentId : '#3109'));
+            }
+            if (typeof window.updateBattleRoomBanner === 'function') window.updateBattleRoomBanner();
+            if (typeof window.setupBattleTeams === 'function') window.setupBattleTeams();
         }
         function escapeHtml(text) { if (!text) return ''; return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
