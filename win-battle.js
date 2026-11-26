@@ -641,9 +641,11 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
         rivalSuccess
     });
 
+    window.__wbDirectMoveRecorded = true;
     wbRecordMoveLive({ type: 'answer', optionIndex: Number(choiceIdx), optionText: chosenText, isCorrect });
     window.renderBattleTeams();
     wbSyncRoomLiveState();
+    setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
@@ -673,9 +675,11 @@ window.declareCantAnswer = function declareCantAnswer() {
         rivalSuccess: true
     });
 
+    window.__wbDirectMoveRecorded = true;
     wbRecordMoveLive({ type: 'cant_answer' });
     window.renderBattleTeams();
     wbSyncRoomLiveState();
+    setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
@@ -705,9 +709,11 @@ window.handleRoundTimeout = function handleRoundTimeout() {
         rivalSuccess: true
     });
 
+    window.__wbDirectMoveRecorded = true;
     wbRecordMoveLive({ type: 'timeout' });
     window.renderBattleTeams();
     wbSyncRoomLiveState();
+    setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 

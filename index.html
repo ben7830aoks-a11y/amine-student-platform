@@ -4021,9 +4021,16 @@
                 if (optsGrid && Array.isArray(data.options) && data.options.length) {
                     const existingBtns = Array.from(optsGrid.querySelectorAll("button"));
                     if (existingBtns.length === data.options.length) {
+                        const letters = ["A", "B", "C", "D"];
                         data.options.forEach((opt, i) => {
                             if (existingBtns[i]) {
-                                existingBtns[i].textContent = opt.text;
+                                const cleanOptText = String(opt.text || "").replace(/^[A-D1-4]\s*/, "").trim();
+                                const badge = existingBtns[i].querySelector(".opt-letter");
+                                if (badge) {
+                                    existingBtns[i].innerHTML = `<span class="opt-letter">${letters[i] || (i + 1)}</span><span>${cleanOptText}</span>`;
+                                } else {
+                                    existingBtns[i].textContent = opt.text;
+                                }
                                 existingBtns[i].disabled = !!opt.disabled;
                             }
                         });
@@ -4060,26 +4067,42 @@
             }
         }
 
+        function getSafeBattleDb() {
+            if (typeof rtdb !== "undefined" && rtdb && typeof rtdb.ref === "function") {
+                return rtdb;
+            }
+            if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length && typeof firebase.database === "function") {
+                return firebase.database();
+            }
+            return null;
+        }
+
         function recordBattleMoveToRoom(roomCode, movePayload) {
+            const db = getSafeBattleDb();
+            if (!db) return;
             const cleanCode = cleanKey(roomCode || getCurrentRoomCodeClean(), "ROOM-101");
             const actor = getActor();
-            rtdb.ref(`public/battles/${cleanCode}/moves`).push().set({
+            db.ref(`public/battles/${cleanCode}/moves`).push().set({
                 playerId: actor.id,
                 playerName: actor.name,
                 sourceClientId: CLIENT_SESSION_ID,
                 ...movePayload,
                 createdAt: firebase.database.ServerValue.TIMESTAMP
-            });
+            }).catch(() => {});
         }
 
         function publishBattleStateNow() {
             if (isApplyingRemoteBattleState) return;
+            const db = getSafeBattleDb();
+            if (!db) return;
             const snap = collectCurrentBattleSnapshot();
             activeBattleSyncCode = snap.roomCode;
-            rtdb.ref(`public/battles/${snap.roomCode}`).update(snap);
+            db.ref(`public/battles/${snap.roomCode}`).update(snap).catch(() => {});
         }
 
         function attachBattleRoomSyncListeners(roomCode) {
+            const db = getSafeBattleDb();
+            if (!db) return;
             const cleanCode = cleanKey(roomCode, "ROOM-101");
             activeBattleSyncCode = cleanCode;
 
@@ -4090,7 +4113,7 @@
                 currentBattleMovesRef.off("child_added", currentBattleMovesListener);
             }
 
-            currentBattleRoomRef = rtdb.ref(`public/battles/${cleanCode}`);
+            currentBattleRoomRef = db.ref(`public/battles/${cleanCode}`);
             currentBattleRoomListener = (snap) => {
                 if (!snap || !snap.exists()) return;
                 applyRemoteBattleSnapshot(snap.val());
@@ -4098,7 +4121,7 @@
             currentBattleRoomRef.on("value", currentBattleRoomListener);
 
             const roomJoinTime = Date.now();
-            currentBattleMovesRef = rtdb.ref(`public/battles/${cleanCode}/moves`);
+            currentBattleMovesRef = db.ref(`public/battles/${cleanCode}/moves`);
             currentBattleMovesListener = (childSnap) => {
                 if (!childSnap || !childSnap.exists()) return;
                 const move = childSnap.val() || {};
@@ -4364,10 +4387,8 @@
                 if (typeof orig === "function" && !orig.__liveBattleSyncWrapped) {
                     const wrapped = function (...args) {
                         const res = orig.apply(this, args);
-                        setTimeout(() => {
-                            attachBattleRoomSyncListeners(getCurrentRoomCodeClean());
-                            publishBattleStateNow();
-                        }, 140);
+                        attachBattleRoomSyncListeners(getCurrentRoomCodeClean());
+                        publishBattleStateNow();
                         return res;
                     };
                     wrapped.__liveBattleSyncWrapped = true;
@@ -4401,29 +4422,35 @@
                 if (!target) return;
                 const optBtn = target.closest("#battleOptionsGrid button");
                 if (optBtn) {
-                    const allBtns = Array.from(document.querySelectorAll("#battleOptionsGrid button"));
-                    const idx = allBtns.indexOf(optBtn);
-                    recordBattleMoveToRoom(getCurrentRoomCodeClean(), {
-                        type: "answer",
-                        optionIndex: idx,
-                        optionText: (optBtn.textContent || "").trim()
-                    });
-                    setTimeout(publishBattleStateNow, 180);
+                    if (!window.__wbDirectMoveRecorded) {
+                        const allBtns = Array.from(document.querySelectorAll("#battleOptionsGrid button"));
+                        const idx = allBtns.indexOf(optBtn);
+                        recordBattleMoveToRoom(getCurrentRoomCodeClean(), {
+                            type: "answer",
+                            optionIndex: idx,
+                            optionText: (optBtn.textContent || "").trim()
+                        });
+                    }
+                    publishBattleStateNow();
                     return;
                 }
                 if (target.id === "cantAnswerBtn") {
-                    recordBattleMoveToRoom(getCurrentRoomCodeClean(), { type: "cant_answer" });
-                    setTimeout(publishBattleStateNow, 180);
+                    if (!window.__wbDirectMoveRecorded) {
+                        recordBattleMoveToRoom(getCurrentRoomCodeClean(), { type: "cant_answer" });
+                    }
+                    publishBattleStateNow();
                     return;
                 }
                 if (target.closest("#classicBattlePanel button")) {
-                    setTimeout(publishBattleStateNow, 200);
+                    publishBattleStateNow();
                 }
             });
 
             attachBattleRoomSyncListeners(getCurrentRoomCodeClean());
 
-            rtdb.ref("public/battles").on("value", (snap) => {
+            const battleRootDb = getSafeBattleDb();
+            if (!battleRootDb) return;
+            battleRootDb.ref("public/battles").on("value", (snap) => {
                 const listWrap = document.getElementById("publicBattlesRoomsList");
                 if (!listWrap) return;
                 listWrap.innerHTML = "";
