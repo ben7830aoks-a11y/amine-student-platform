@@ -3785,7 +3785,7 @@
             });
         }
 
-        // 2) قسم المعارك الحية بين الأجهزة + إشعارات الدعوات (#section-battleArena)
+        // 2) قسم المعارك الحية بين الأجهزة + إشعارات الدعوات + renderBattleTeams (#section-battleArena)
         let activeBattleSyncCode = "ROOM-101";
         let isApplyingRemoteBattleState = false;
         let currentBattleRoomRef = null;
@@ -3795,6 +3795,76 @@
         let currentInviteListenerRef = null;
         let currentInviteListenerId = "";
         let pendingBattleInviteObj = null;
+        let lastAppliedBattleSeq = 0;
+
+        function formatDisplayId(rawId, fallback = "#1001") {
+            const cleaned = cleanKey(rawId, "");
+            if (!cleaned) return fallback;
+            return "#" + cleaned;
+        }
+
+        function buildOpponentEntry(rawId, rawName, score = 0) {
+            const normId = formatDisplayId(rawId, "#2000");
+            const cleanName = String(rawName || "").trim().slice(0, 40) || `منافس ${normId}`;
+            return {
+                name: cleanName,
+                studentId: normId,
+                score: Number(score) || 0,
+                isUser: false,
+                isCustom: true
+            };
+        }
+
+        function syncOpponentIntoBattleTeams(opponentInfo, roomHostInfo = null) {
+            if (!opponentInfo || (!opponentInfo.id && !opponentInfo.studentId && !opponentInfo.name)) return;
+            const oppId = cleanKey(opponentInfo.studentId || opponentInfo.id, "");
+            const oppName = String(opponentInfo.name || opponentInfo.username || "").trim();
+            const oppScore = Number(opponentInfo.score || 0);
+            const oppEntry = buildOpponentEntry(oppId, oppName, oppScore);
+
+            if (typeof customTeamB !== "undefined" && Array.isArray(customTeamB)) {
+                const existingCustomIdx = customTeamB.findIndex(p => cleanKey(p.studentId || p.id, "") === oppId && oppId);
+                if (existingCustomIdx >= 0) {
+                    customTeamB[existingCustomIdx] = { ...customTeamB[existingCustomIdx], ...oppEntry };
+                } else {
+                    customTeamB.unshift(oppEntry);
+                }
+            }
+
+            if (typeof battleTeamB !== "undefined" && Array.isArray(battleTeamB)) {
+                if (!battleTeamB.length) {
+                    battleTeamB.push(oppEntry);
+                } else {
+                    const existingIdx = battleTeamB.findIndex(p => cleanKey(p.studentId || p.id, "") === oppId && oppId);
+                    if (existingIdx >= 0) {
+                        battleTeamB[existingIdx] = { ...battleTeamB[existingIdx], ...oppEntry };
+                    } else {
+                        battleTeamB[0] = { ...oppEntry, score: Number(battleTeamB[0]?.score || oppScore || 0) };
+                    }
+                }
+            }
+
+            if (roomHostInfo && (roomHostInfo.id || roomHostInfo.name)) {
+                const me = getActor();
+                const hostId = cleanKey(roomHostInfo.id, "");
+                if (hostId && hostId !== me.id && typeof battleTeamA !== "undefined" && Array.isArray(battleTeamA) && battleTeamA.length) {
+                    const hostEntry = {
+                        name: String(roomHostInfo.name || "مضيف الغرفة").trim().slice(0, 40),
+                        studentId: formatDisplayId(hostId, "#1001"),
+                        score: Number(battleTeamA[0]?.score || 0),
+                        isUser: false,
+                        isCustom: true
+                    };
+                    if (!battleTeamA[0]?.isUser) {
+                        battleTeamA[0] = hostEntry;
+                    }
+                }
+            }
+
+            if (typeof renderBattleTeams === "function") {
+                renderBattleTeams();
+            }
+        }
 
         function getCurrentRoomCodeClean() {
             const raw = document.getElementById("battleRoomCodeBadge")?.textContent || "ROOM-101";
@@ -3829,6 +3899,26 @@
             const summaryHidden = !!document.getElementById("battleSummaryArea")?.classList.contains("hidden");
             const summaryHtml = document.getElementById("battleSummaryArea")?.innerHTML || "";
 
+            const teamASnapshot = (typeof battleTeamA !== "undefined" && Array.isArray(battleTeamA))
+                ? battleTeamA.map(p => ({
+                    name: String(p.name || "").slice(0, 40),
+                    studentId: formatDisplayId(p.studentId || p.id, "#1001"),
+                    score: Number(p.score) || 0,
+                    isUser: !!p.isUser,
+                    isCustom: !!p.isCustom
+                }))
+                : [];
+
+            const teamBSnapshot = (typeof battleTeamB !== "undefined" && Array.isArray(battleTeamB))
+                ? battleTeamB.map(p => ({
+                    name: String(p.name || "").slice(0, 40),
+                    studentId: formatDisplayId(p.studentId || p.id, "#5102"),
+                    score: Number(p.score) || 0,
+                    isUser: false,
+                    isCustom: !!p.isCustom
+                }))
+                : [];
+
             const options = Array.from(document.querySelectorAll("#battleOptionsGrid button")).map((btn, idx) => ({
                 index: idx,
                 text: (btn.textContent || "").trim(),
@@ -3850,15 +3940,21 @@
                 summaryHidden,
                 summaryHtml,
                 options,
+                teamA: teamASnapshot,
+                teamB: teamBSnapshot,
                 hostId: actor.id,
                 hostName: actor.name,
                 sourceClientId: CLIENT_SESSION_ID,
+                seq: Date.now(),
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
             };
         }
 
         function applyRemoteBattleSnapshot(data) {
             if (!data || data.sourceClientId === CLIENT_SESSION_ID) return;
+            if (typeof data.seq === "number" && data.seq <= lastAppliedBattleSeq) return;
+            if (typeof data.seq === "number") lastAppliedBattleSeq = data.seq;
+
             isApplyingRemoteBattleState = true;
             try {
                 const code = cleanKey(data.roomCode || activeBattleSyncCode, "ROOM-101");
@@ -3882,6 +3978,29 @@
                 if (domainEl && data.domain) domainEl.value = String(data.domain);
                 if (scoreAEl && data.scoreA) scoreAEl.textContent = data.scoreA;
                 if (scoreBEl && data.scoreB) scoreBEl.textContent = data.scoreB;
+
+                if (Array.isArray(data.teamB) && data.teamB.length && typeof battleTeamB !== "undefined" && Array.isArray(battleTeamB)) {
+                    data.teamB.forEach((remoteP, idx) => {
+                        if (remoteP && (remoteP.name || remoteP.studentId)) {
+                            const entry = buildOpponentEntry(remoteP.studentId, remoteP.name, remoteP.score || 0);
+                            if (idx < battleTeamB.length) {
+                                battleTeamB[idx] = { ...battleTeamB[idx], ...entry, isCustom: true };
+                            }
+                        }
+                    });
+                }
+
+                if (data.opponent && (data.opponent.id || data.opponent.studentId || data.opponent.name)) {
+                    syncOpponentIntoBattleTeams(data.opponent, { id: data.hostId, name: data.hostName });
+                } else if (typeof renderBattleTeams === "function") {
+                    renderBattleTeams();
+                }
+
+                const syncStatus = document.getElementById("battleLiveSyncStatus");
+                if (syncStatus && data.opponent && (data.opponent.name || data.opponent.studentId)) {
+                    const oppLabel = `${data.opponent.name || "منافس"} (${formatDisplayId(data.opponent.studentId || data.opponent.id, "#?")})`;
+                    syncStatus.textContent = `✅ انضم الخصم: ${oppLabel}`;
+                }
 
                 if (activeArea && typeof data.activeAreaHidden === "boolean") {
                     activeArea.classList.toggle("hidden", data.activeAreaHidden);
@@ -4005,7 +4124,7 @@
 
             pendingBattleInviteObj = inviteObj;
             const fromName = inviteObj.fromName || "منافس";
-            const fromId = inviteObj.fromId || "?";
+            const fromId = cleanKey(inviteObj.fromId || "", "?");
             const roomCode = cleanKey(inviteObj.roomCode || "ROOM-101", "ROOM-101");
             const roomName = inviteObj.roomName || `غرفة #${roomCode}`;
 
@@ -4035,29 +4154,89 @@
             }
         }
 
-        window.acceptIncomingInvite = function () {
+        window.acceptIncomingInvite = async function () {
             const inv = pendingBattleInviteObj;
             const banner = document.getElementById("incomingInviteBanner");
             if (banner) banner.classList.add("hidden");
             if (!inv) return;
 
+            const actor = getActor();
             const targetRoom = cleanKey(inv.roomCode || "ROOM-101", "ROOM-101");
-            setCurrentRoomUi(targetRoom, inv.roomName || `غرفة #${targetRoom}`);
+            const roomName = inv.roomName || `غرفة #${targetRoom}`;
+
+            setCurrentRoomUi(targetRoom, roomName);
             attachBattleRoomSyncListeners(targetRoom);
+
+            const joinedOpponent = {
+                id: actor.id,
+                studentId: formatDisplayId(actor.id, "#1001"),
+                name: actor.name,
+                score: 0
+            };
+
+            const hostOpponentForAccepter = {
+                id: cleanKey(inv.fromId || "", "1001"),
+                studentId: formatDisplayId(inv.fromId || "1001", "#1001"),
+                name: String(inv.fromName || "منافس").trim() || "منافس",
+                score: 0
+            };
+
+            if (typeof setupBattleTeams === "function") {
+                setupBattleTeams();
+            }
+            if (typeof battleTeamA !== "undefined" && Array.isArray(battleTeamA) && battleTeamA.length) {
+                battleTeamA[0] = {
+                    name: actor.name,
+                    studentId: formatDisplayId(actor.id, "#1001"),
+                    score: 0,
+                    isUser: true,
+                    isCustom: true
+                };
+            }
+            syncOpponentIntoBattleTeams(hostOpponentForAccepter, null);
 
             if (typeof showMainSection === "function") {
                 const battleNavBtn = document.getElementById("navBattleArena");
                 showMainSection("battleArena", battleNavBtn || null);
             }
+
+            try {
+                await rtdb.ref(`public/battles/${targetRoom}`).update({
+                    roomCode: targetRoom,
+                    roomName,
+                    opponent: joinedOpponent,
+                    status: "opponent_joined",
+                    sourceClientId: CLIENT_SESSION_ID,
+                    seq: Date.now(),
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                if (actor.id) {
+                    await rtdb.ref(`public/battleInvites/${actor.id}`).remove().catch(() => {});
+                }
+            } catch (_) {}
+
+            const statusEl = document.getElementById("battleLiveSyncStatus");
+            if (statusEl) {
+                statusEl.textContent = `✅ متصل بالغرفة #${targetRoom} مع ${hostOpponentForAccepter.name} (${hostOpponentForAccepter.studentId})`;
+            }
+
             if (typeof showToast === "function") {
-                showToast("تم الانضمام إلى غرفة المعركة #" + targetRoom + " ⚔️");
+                showToast(`تم قبول الدعوة والانضمام إلى #${targetRoom} ⚔️`);
             }
             pendingBattleInviteObj = null;
         };
 
-        window.declineIncomingInvite = function () {
+        window.declineIncomingInvite = async function () {
+            const inv = pendingBattleInviteObj;
             const banner = document.getElementById("incomingInviteBanner");
             if (banner) banner.classList.add("hidden");
+            const actor = getActor();
+            if (inv && actor.id) {
+                try {
+                    await rtdb.ref(`public/battleInvites/${actor.id}`).remove();
+                } catch (_) {}
+            }
             pendingBattleInviteObj = null;
         };
 
@@ -4072,6 +4251,16 @@
             const actor = getActor();
             const roomCode = getCurrentRoomCodeClean();
             const roomName = (document.getElementById("battleRoomNameDisplay")?.textContent || "غرفة التحدي السريع").trim();
+
+            await rtdb.ref(`public/battles/${roomCode}`).update({
+                roomCode,
+                roomName,
+                hostId: actor.id,
+                hostName: actor.name,
+                sourceClientId: CLIENT_SESSION_ID,
+                seq: Date.now(),
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            }).catch(() => {});
 
             await rtdb.ref(`public/battleInvites/${targetId}`).set({
                 inviteId: "inv_" + Date.now(),
@@ -4193,7 +4382,7 @@
                 "selectBattleSize",
                 "updateRoundsFromBar",
                 "declareCantAnswer",
-                "nextBattleRound",
+                "loadBattleRound",
                 "finishBattle"
             ].forEach(hookFn);
 
