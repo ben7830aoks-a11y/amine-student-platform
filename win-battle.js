@@ -116,10 +116,59 @@ function wbAppendNote(text, toastMsg) {
     wbToast(toastMsg || 'تم الحفظ في دفتر الملاحظات 📝');
 }
 
+function wbCopyToClipboard(text, successMsg = 'تم النسخ 📋') {
+    if (typeof window.copyTextToClipboard === 'function') {
+        window.copyTextToClipboard(text, successMsg);
+        return;
+    }
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(text)
+            .then(() => wbToast(successMsg))
+            .catch(() => wbToast('تعذر النسخ إلى الحافظة', true));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            wbToast(successMsg);
+        } catch (_) {
+            wbToast('تعذر النسخ إلى الحافظة', true);
+        } finally {
+            document.body.removeChild(ta);
+        }
+    }
+}
+
+function wbAddTeamPoints(teamArray, points) {
+    if (!Array.isArray(teamArray) || !teamArray.length) return;
+    const pts = Number(points) || 0;
+    const perPlayer = Math.floor(pts / teamArray.length);
+    const remainder = pts % teamArray.length;
+
+    teamArray.forEach((player, idx) => {
+        const extra = idx === 0 ? remainder : 0;
+        player.score = (Number(player.score) || 0) + perPlayer + extra;
+    });
+}
+
+function wbGetCorrectOptionInfo(qObj) {
+    const letters = ['A', 'B', 'C', 'D'];
+    const options = Array.isArray(qObj?.options) ? qObj.options : [];
+    const rawIdx = Number(qObj?.answer);
+    const safeIdx = Number.isInteger(rawIdx) && rawIdx >= 0 && rawIdx < options.length ? rawIdx : 0;
+    const letter = letters[safeIdx] || String(safeIdx + 1);
+    const text = options[safeIdx] ?? 'غير متوفر';
+    return { index: safeIdx, letter, text, formatted: `(${letter}) ${text}` };
+}
+
 /* ==================== التحكم بساحة المعارك ==================== */
 window.switchArenaMode = function switchArenaMode(mode) {
-    window.currentArenaSubMode = mode;
-    const isClassic = mode === 'classic';
+    window.currentArenaSubMode = mode === 'ai-vs-ai' ? 'ai-vs-ai' : 'classic';
+    const isClassic = window.currentArenaSubMode === 'classic';
 
     const tabClassic = document.getElementById('arenaTabClassic');
     const tabAi = document.getElementById('arenaTabAiVsAi');
@@ -131,14 +180,21 @@ window.switchArenaMode = function switchArenaMode(mode) {
     if (classicPanel) classicPanel.classList.toggle('hidden', !isClassic);
     if (aiPanel) aiPanel.classList.toggle('hidden', isClassic);
 
-    if (!isClassic) {
+    if (isClassic) {
+        if (window.aiBattleStepTimerId) {
+            clearTimeout(window.aiBattleStepTimerId);
+            window.aiBattleStepTimerId = null;
+        }
+    } else {
+        window.clearBattleTimers();
         window.loadOpponentRefsRegistry();
         window.syncAiOpponentUi(window.activeAiOpponentId);
     }
 };
 
 window.updateRoundsFromBar = function updateRoundsFromBar() {
-    const val = parseInt(document.getElementById('battleRoundsSelect')?.value || String(window.battleTotalRounds || 3), 10) || 3;
+    const raw = parseInt(document.getElementById('battleRoundsSelect')?.value || String(window.battleTotalRounds || 3), 10);
+    const val = Number.isFinite(raw) && raw > 0 ? Math.min(raw, 20) : 3;
     window.battleTotalRounds = val;
     const badge = document.getElementById('battleRoundsBadge');
     if (badge) badge.textContent = `${window.battleTotalRounds} جولات`;
@@ -182,7 +238,7 @@ window.submitCreateBattleRoom = function submitCreateBattleRoom() {
 
     const code = `#ROOM-${Math.floor(100 + Math.random() * 900)}`;
     window.battleRoomInfo = { name: rawName || `غرفة التحدي ${code}`, code };
-    window.battleTotalRounds = roundsVal;
+    window.battleTotalRounds = Math.max(1, Math.min(roundsVal, 20));
 
     const domSel = document.getElementById('battleDomainSelect');
     if (domSel) domSel.value = domVal;
@@ -250,17 +306,18 @@ window.removeCustomCompetitor = function removeCustomCompetitor(team, idx) {
 };
 
 window.selectBattleSize = function selectBattleSize(size) {
-    window.battleSize = size;
+    const parsed = parseInt(size, 10);
+    window.battleSize = Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 4) : 1;
 
     document.querySelectorAll('.battle-mode-btn').forEach(b => b.classList.remove('active-mode'));
-    const btn = document.getElementById(`modeBtn${size}v${size}`);
+    const btn = document.getElementById(`modeBtn${window.battleSize}v${window.battleSize}`);
     if (btn) btn.classList.add('active-mode');
 
     const label = document.getElementById('battleModeLabel');
-    if (label) label.textContent = `${size} vs ${size}`;
+    if (label) label.textContent = `${window.battleSize} vs ${window.battleSize}`;
 
-    window.customTeamA = window.customTeamA.slice(0, size);
-    window.customTeamB = window.customTeamB.slice(0, size);
+    window.customTeamA = window.customTeamA.slice(0, window.battleSize);
+    window.customTeamB = window.customTeamB.slice(0, window.battleSize);
 
     window.setupBattleTeams();
 };
@@ -350,12 +407,19 @@ window.renderBattleTeams = function renderBattleTeams() {
 };
 
 window.clearBattleTimers = function clearBattleTimers() {
-    clearInterval(window.battleTimerId);
-    clearInterval(window.autoAdvanceCountdownId);
+    if (window.battleTimerId) {
+        clearInterval(window.battleTimerId);
+        window.battleTimerId = null;
+    }
+    if (window.autoAdvanceCountdownId) {
+        clearInterval(window.autoAdvanceCountdownId);
+        window.autoAdvanceCountdownId = null;
+    }
 };
 
 window.startNewBattle = function startNewBattle() {
     window.clearBattleTimers();
+    window.battleAnswered = false;
     window.updateRoundsFromBar();
 
     if (!window.battleTeamA.length || !window.battleTeamB.length) {
@@ -375,6 +439,11 @@ window.startNewBattle = function startNewBattle() {
 
     if (!sourcePool.length) {
         sourcePool = [...(bank.programming || []), ...(bank.math || [])];
+    }
+
+    if (!sourcePool.length) {
+        wbToast('لا توجد أسئلة متاحة لبدء المعركة', true);
+        return;
     }
 
     sourcePool.sort(() => Math.random() - 0.5);
@@ -398,7 +467,10 @@ window.loadBattleRound = function loadBattleRound() {
     window.battleAnswered = false;
 
     const qObj = window.battleQuestions[window.battleRoundIndex];
-    if (!qObj) return;
+    if (!qObj) {
+        window.finishBattle();
+        return;
+    }
 
     const letters = ['A', 'B', 'C', 'D'];
     const roundInfo = document.getElementById('battleRoundInfo');
@@ -409,8 +481,8 @@ window.loadBattleRound = function loadBattleRound() {
     const timerBadge = document.getElementById('battleTimerBadge');
     const grid = document.getElementById('battleOptionsGrid');
 
-    if (roundInfo) roundInfo.textContent = `الجولة ${window.battleRoundIndex + 1} / ${window.battleTotalRounds} — ${qObj.domain}`;
-    if (qText) qText.textContent = qObj.q;
+    if (roundInfo) roundInfo.textContent = `الجولة ${window.battleRoundIndex + 1} / ${window.battleTotalRounds} — ${qObj.domain || 'عام'}`;
+    if (qText) qText.textContent = qObj.q || '';
     if (feedback) feedback.innerHTML = '';
     if (autoBanner) autoBanner.classList.add('hidden');
     if (cantBtn) cantBtn.disabled = false;
@@ -421,7 +493,7 @@ window.loadBattleRound = function loadBattleRound() {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'battle-opt-btn';
-            btn.innerHTML = `<span class="opt-letter">${letters[idx]}</span><span>${wbEscapeHtml(opt)}</span>`;
+            btn.innerHTML = `<span class="opt-letter">${letters[idx] || idx + 1}</span><span>${wbEscapeHtml(opt)}</span>`;
             btn.onclick = () => window.submitBattleChoice(idx);
             grid.appendChild(btn);
         });
@@ -432,9 +504,12 @@ window.loadBattleRound = function loadBattleRound() {
 
     window.battleTimerId = setInterval(() => {
         window.battleTimerSec--;
-        if (timerBadge) timerBadge.textContent = `⏱️ ${window.battleTimerSec} ثانية`;
+        if (timerBadge) timerBadge.textContent = `⏱️ ${Math.max(0, window.battleTimerSec)} ثانية`;
         if (window.battleTimerSec <= 0) {
-            clearInterval(window.battleTimerId);
+            if (window.battleTimerId) {
+                clearInterval(window.battleTimerId);
+                window.battleTimerId = null;
+            }
             if (!window.battleAnswered) window.handleRoundTimeout();
         }
     }, 1000);
@@ -456,7 +531,11 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
             : `⏳ الانتقال تلقائياً إلى الجولة التالية خلال ${secLeft} ثوانٍ...`;
     }
 
-    clearInterval(window.autoAdvanceCountdownId);
+    if (window.autoAdvanceCountdownId) {
+        clearInterval(window.autoAdvanceCountdownId);
+        window.autoAdvanceCountdownId = null;
+    }
+
     window.autoAdvanceCountdownId = setInterval(() => {
         secLeft--;
         if (secLeft > 0) {
@@ -466,7 +545,10 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
                     : `⏳ الانتقال تلقائياً إلى الجولة التالية خلال ${secLeft} ثوانٍ...`;
             }
         } else {
-            clearInterval(window.autoAdvanceCountdownId);
+            if (window.autoAdvanceCountdownId) {
+                clearInterval(window.autoAdvanceCountdownId);
+                window.autoAdvanceCountdownId = null;
+            }
             if (isLastRound) {
                 window.finishBattle();
             } else {
@@ -486,32 +568,30 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
-    const isCorrect = choiceIdx === qObj.answer;
-    const letters = ['A', 'B', 'C', 'D'];
-    const userPlayer = window.battleTeamA[0] || { score: 0 };
-    const rivalPlayer = window.battleTeamB[0] || { score: 0 };
+    const correctInfo = wbGetCorrectOptionInfo(qObj);
+    const isCorrect = Number(choiceIdx) === correctInfo.index;
     const feedback = document.getElementById('battleRoundFeedback');
 
     let rivalSuccess = false;
     if (isCorrect) {
-        userPlayer.score = (Number(userPlayer.score) || 0) + 10;
+        wbAddTeamPoints(window.battleTeamA, 10);
         rivalSuccess = Math.random() < 0.35;
-        if (rivalSuccess) rivalPlayer.score = (Number(rivalPlayer.score) || 0) + 10;
+        if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
         if (feedback) {
             feedback.innerHTML = `<span style="color:#10b981;font-weight:bold;">✅ إجابة صحيحة! (+10 نقاط لفريق Alpha)</span>`;
         }
     } else {
         rivalSuccess = Math.random() < 0.75;
-        if (rivalSuccess) rivalPlayer.score = (Number(rivalPlayer.score) || 0) + 10;
+        if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
         if (feedback) {
-            feedback.innerHTML = `<span style="color:#f87171;font-weight:bold;">❌ إجابة خاطئة! الإجابة الصحيحة هي (${letters[qObj.answer]}): ${wbEscapeHtml(qObj.options[qObj.answer])}</span>`;
+            feedback.innerHTML = `<span style="color:#f87171;font-weight:bold;">❌ إجابة خاطئة! الإجابة الصحيحة هي (${correctInfo.letter}): ${wbEscapeHtml(correctInfo.text)}</span>`;
         }
     }
 
     window.battleLogs.push({
         round: window.battleRoundIndex + 1,
-        question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
+        question: qObj.q || '',
+        correctText: correctInfo.formatted,
         userCorrect: isCorrect,
         cantAnswer: false,
         rivalSuccess
@@ -530,18 +610,18 @@ window.declareCantAnswer = function declareCantAnswer() {
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
-    const letters = ['A', 'B', 'C', 'D'];
-    if (window.battleTeamB[0]) window.battleTeamB[0].score = (Number(window.battleTeamB[0].score) || 0) + 10;
+    const correctInfo = wbGetCorrectOptionInfo(qObj);
+    wbAddTeamPoints(window.battleTeamB, 10);
 
     const feedback = document.getElementById('battleRoundFeedback');
     if (feedback) {
-        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">🏳️ أعلنت عدم قدرتك على الإجابة. (+10 نقاط للفريق المنافس) — الإجابة الصحيحة: ${wbEscapeHtml(qObj.options[qObj.answer])}</span>`;
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">🏳️ أعلنت عدم قدرتك على الإجابة. (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
     window.battleLogs.push({
         round: window.battleRoundIndex + 1,
-        question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
+        question: qObj.q || '',
+        correctText: correctInfo.formatted,
         userCorrect: false,
         cantAnswer: true,
         rivalSuccess: true
@@ -554,23 +634,24 @@ window.declareCantAnswer = function declareCantAnswer() {
 window.handleRoundTimeout = function handleRoundTimeout() {
     if (window.battleAnswered) return;
     window.battleAnswered = true;
+    window.clearBattleTimers();
     window.lockBattleOptions();
 
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
-    const letters = ['A', 'B', 'C', 'D'];
-    if (window.battleTeamB[0]) window.battleTeamB[0].score = (Number(window.battleTeamB[0].score) || 0) + 10;
+    const correctInfo = wbGetCorrectOptionInfo(qObj);
+    wbAddTeamPoints(window.battleTeamB, 10);
 
     const feedback = document.getElementById('battleRoundFeedback');
     if (feedback) {
-        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! (+10 نقاط للفريق المنافس) — الإجابة الصحيحة: ${wbEscapeHtml(qObj.options[qObj.answer])}</span>`;
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
     window.battleLogs.push({
         round: window.battleRoundIndex + 1,
-        question: qObj.q,
-        correctText: `(${letters[qObj.answer]}) ${qObj.options[qObj.answer]}` ,
+        question: qObj.q || '',
+        correctText: correctInfo.formatted,
         userCorrect: false,
         cantAnswer: false,
         rivalSuccess: true
@@ -589,7 +670,7 @@ window.finishBattle = function finishBattle() {
     const userWon = scoreA > scoreB;
     const isDraw = scoreA === scoreB;
 
-    let headline = '⚠️ خسارة فريق Alpha أمام الفريق المنافس';
+    let headline = '⚠️ خسارة فريق Alpha أمام فريق Omega';
     let headlineColor = '#f87171';
     if (isDraw) {
         headline = '🤝 تعادل مثير!';
@@ -641,7 +722,8 @@ window.saveBattleSummaryToNote = function saveBattleSummaryToNote() {
     const scoreB = window.battleTeamB.reduce((s, p) => s + (Number(p.score) || 0), 0);
     const lines = [`⚔️ ملخص معركة (${window.battleRoomInfo.name} - ${window.battleSize}v${window.battleSize}): Alpha ${scoreA} - ${scoreB} Omega`];
     window.battleLogs.forEach(l => lines.push(`• الجولة ${l.round}: ${l.question} | الصحيح: ${l.correctText}`));
-    wbAppendNote(lines.join('\n'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
+    wbAppendNote(lines.join('
+'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
 };
 
 /* ==================== معركة AI ضد AI حسب الـ ID ==================== */
@@ -671,7 +753,7 @@ window.getDefaultOpponentProfile = function getDefaultOpponentProfile(normId) {
         id: normId,
         name: `الخصم ${normId}`,
         agentName: `وكيل الخصم (${normId})`,
-        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.\nالمصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.'
+        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.\nالمصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.`
     };
 };
 
@@ -767,9 +849,14 @@ window.parseSourcesList = function parseSourcesList(rawText) {
 };
 
 window.startAiVsAiBattle = function startAiVsAiBattle() {
-    clearTimeout(window.aiBattleStepTimerId);
+    if (window.aiBattleStepTimerId) {
+        clearTimeout(window.aiBattleStepTimerId);
+        window.aiBattleStepTimerId = null;
+    }
+
     const topic = (document.getElementById('aiBattleTopicInput')?.value || '').trim() || 'موضوع بحثي مقارن';
-    const rounds = parseInt(document.getElementById('aiBattleRoundsSelect')?.value || '3', 10) || 3;
+    const rawRounds = parseInt(document.getElementById('aiBattleRoundsSelect')?.value || '3', 10);
+    const rounds = Number.isFinite(rawRounds) && rawRounds > 0 ? Math.min(rawRounds, 10) : 3;
     const ai1Name = (document.getElementById('ai1NameInput')?.value || 'AI-Alpha').trim();
     const ai2Name = (document.getElementById('ai2NameInput')?.value || `وكيل الخصم (${window.activeAiOpponentId})`).trim();
     const ai1Sources = window.parseSourcesList(document.getElementById('ai1SourcesInput')?.value);
@@ -791,7 +878,10 @@ window.startAiVsAiBattle = function startAiVsAiBattle() {
     const liveArea = document.getElementById('aiBattleLiveArea');
 
     if (feed) feed.innerHTML = '';
-    if (resBox) resBox.classList.add('hidden');
+    if (resBox) {
+        resBox.classList.add('hidden');
+        resBox.innerHTML = '';
+    }
     if (banner) banner.classList.add('hidden');
     if (liveArea) liveArea.classList.remove('hidden');
 
@@ -810,10 +900,10 @@ window.updateAiFightersHud = function updateAiFightersHud() {
 
     if (hp1Text) hp1Text.textContent = ai1.hp;
     if (sc1Text) sc1Text.textContent = ai1.score;
-    if (hp1Bar) hp1Bar.style.width = `${Math.max(0, ai1.hp)}%`;
+    if (hp1Bar) hp1Bar.style.width = `${Math.max(0, Math.min(100, ai1.hp))}%`;
     if (hp2Text) hp2Text.textContent = ai2.hp;
     if (sc2Text) sc2Text.textContent = ai2.score;
-    if (hp2Bar) hp2Bar.style.width = `${Math.max(0, ai2.hp)}%`;
+    if (hp2Bar) hp2Bar.style.width = `${Math.max(0, Math.min(100, ai2.hp))}%`;
 };
 
 window.runNextAiDebateRound = function runNextAiDebateRound() {
@@ -873,6 +963,7 @@ window.runNextAiDebateRound = function runNextAiDebateRound() {
 };
 
 window.finalizeAiDebateAndGenerateResearch = function finalizeAiDebateAndGenerateResearch() {
+    window.aiBattleStepTimerId = null;
     if (!window.aiBattleState) return;
     const { topic, ai1, ai2, roundRecords } = window.aiBattleState;
     const dateStr = new Date().toLocaleDateString('ar-DZ');
@@ -904,7 +995,7 @@ window.finalizeAiDebateAndGenerateResearch = function finalizeAiDebateAndGenerat
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                     <h4 style="color:#34d399;margin:0;font-size:16px;">📚 البحث / المصدر المولّد من المعركة</h4>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <button type="button" class="copy-mini-btn" onclick="copyTextToClipboard(window.generatedBattleResearchText, 'تم نسخ البحث المولّد 📋')">📋 نسخ البحث</button>
+                        <button type="button" class="copy-mini-btn" onclick="wbCopyToClipboard(window.generatedBattleResearchText, 'تم نسخ البحث المولّد 📋')">📋 نسخ البحث</button>
                         <button type="button" class="send-to-note-btn" onclick="sendGeneratedResearchToNote()">📝 إرسال إلى الملاحظات</button>
                         <button type="button" class="add-friend-btn" style="background:#10b981;" onclick="publishGeneratedResearchToCommunity()">🚀 نشر في مشاركة المشاريع</button>
                     </div>
@@ -924,18 +1015,18 @@ window.publishGeneratedResearchToCommunity = function publishGeneratedResearchTo
     if (!window.generatedBattleResearchText || !window.aiBattleState) return;
     const title = `بحث معركة AI (${window.activeAiOpponentId}): ${window.aiBattleState.topic.slice(0, 48)}`;
     const content = window.generatedBattleResearchText;
+    const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    const rawId = String((u && u.id) || localStorage.getItem('ssp_ff_player_id') || '1001').replace(/^#/, '');
+    const authorName = String((u && u.username) || document.getElementById('navUsername')?.textContent || 'طالب').trim();
 
     if (typeof window.firebase !== 'undefined' && firebase.apps && firebase.apps.length && typeof firebase.database === 'function') {
-        const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
-        const authorId = String((u && u.id) || localStorage.getItem('ssp_ff_player_id') || '1001').replace(/^#/, '');
-        const authorName = String((u && u.username) || document.getElementById('navUsername')?.textContent || 'طالب').trim();
         const newRef = firebase.database().ref('public/projects').push();
         newRef.set({
             id: newRef.key,
             title,
             domain: 'الذكاء الاصطناعي',
             content,
-            authorId,
+            authorId: rawId,
             authorName,
             createdAt: firebase.database.ServerValue.TIMESTAMP
         }).then(() => {
@@ -944,11 +1035,10 @@ window.publishGeneratedResearchToCommunity = function publishGeneratedResearchTo
             wbToast('تعذر النشر السحابي حالياً', true);
         });
     } else if (Array.isArray(window.sharedProjects)) {
-        const u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
         window.sharedProjects.unshift({
             id: Date.now(),
-            author: u ? u.username : 'طالب',
-            authorId: u ? u.id : '#1001',
+            author: authorName,
+            authorId: `#${rawId}`,
             title,
             domain: 'الذكاء الاصطناعي',
             content,
