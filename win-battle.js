@@ -8,7 +8,6 @@ window.battleTimerSec = window.battleTimerSec || 20;
 window.battleTimerId = window.battleTimerId || null;
 window.autoAdvanceCountdownId = window.autoAdvanceCountdownId || null;
 window.battleAnswered = window.battleAnswered || false;
-window.battleRoundAnswers = window.battleRoundAnswers || {};
 window.battleRoomInfo = window.battleRoomInfo || { name: 'غرفة التحدي السريع', code: '#ROOM-101' };
 window.customTeamA = window.customTeamA || [];
 window.customTeamB = window.customTeamB || [];
@@ -144,20 +143,6 @@ function wbCopyToClipboard(text, successMsg = 'تم النسخ 📋') {
     }
 }
 
-function wbNormalizeIdTag(rawId, fallback = '') {
-    const cleaned = String(rawId ?? '').replace(/^#/, '').trim();
-    if (!cleaned) return fallback;
-    return `#${cleaned}`;
-}
-
-function wbGetCurrentActorInfo() {
-    const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
-    const rawId = (user && user.id) || localStorage.getItem('ssp_ff_player_id') || '1001';
-    const idTag = wbNormalizeIdTag(rawId, '#1001');
-    const name = String((user && user.username) || document.getElementById('navUsername')?.textContent || 'أنت').trim() || 'أنت';
-    return { idTag, rawId: idTag.replace(/^#/, ''), name };
-}
-
 function wbAddTeamPoints(teamArray, points) {
     if (!Array.isArray(teamArray) || !teamArray.length) return;
     const pts = Number(points) || 0;
@@ -209,55 +194,6 @@ function wbShuffleArray(arr) {
     }
     return copy;
 }
-
-/* ==================== تحديث بيانات الخصم والمنافسين لحظياً ==================== */
-window.wbApplyRemoteOpponent = function wbApplyRemoteOpponent(opponentData, hostData = null) {
-    const actor = wbGetCurrentActorInfo();
-
-    if (opponentData && (opponentData.id || opponentData.studentId || opponentData.name)) {
-        const oppId = wbNormalizeIdTag(opponentData.studentId || opponentData.id, '#5102');
-        if (oppId !== actor.idTag) {
-            const oppName = String(opponentData.name || opponentData.username || '').trim() || `منافس ${oppId}`;
-            const oppScore = Number(opponentData.score) || 0;
-
-            if (!Array.isArray(window.customTeamB)) window.customTeamB = [];
-            const existingIdx = window.customTeamB.findIndex(
-                p => wbNormalizeIdTag(p.studentId || p.id, '') === oppId
-            );
-            const entry = { name: oppName, studentId: oppId, score: oppScore, isUser: false, isCustom: true };
-
-            if (existingIdx >= 0) {
-                window.customTeamB[existingIdx] = { ...window.customTeamB[existingIdx], ...entry };
-            } else {
-                window.customTeamB.unshift(entry);
-            }
-
-            if (typeof window.syncAiOpponentUi === 'function' && window.currentArenaSubMode === 'aiVsAi') {
-                window.syncAiOpponentUi(oppId);
-            }
-        }
-    }
-
-    if (hostData && (hostData.id || hostData.studentId || hostData.name)) {
-        const hostId = wbNormalizeIdTag(hostData.studentId || hostData.id, '');
-        const hostName = String(hostData.name || hostData.username || '').trim();
-        if (hostId && hostId !== actor.idTag) {
-            if (!Array.isArray(window.customTeamB)) window.customTeamB = [];
-            const hIdx = window.customTeamB.findIndex(p => wbNormalizeIdTag(p.studentId || p.id, '') === hostId);
-            const hostEntry = {
-                name: hostName || `منافس ${hostId}`,
-                studentId: hostId,
-                score: Number(hostData.score) || 0,
-                isUser: false,
-                isCustom: true
-            };
-            if (hIdx >= 0) window.customTeamB[hIdx] = { ...window.customTeamB[hIdx], ...hostEntry };
-            else window.customTeamB.unshift(hostEntry);
-        }
-    }
-
-    window.setupBattleTeams();
-};
 
 /* ==================== التحكم بساحة المعارك ==================== */
 window.switchArenaMode = function switchArenaMode(mode) {
@@ -427,10 +363,13 @@ window.selectBattleSize = function selectBattleSize(size) {
 };
 
 window.setupBattleTeams = function setupBattleTeams() {
-    const actor = wbGetCurrentActorInfo();
+    const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    const userName = user ? user.username : (document.getElementById('navUsername')?.textContent?.trim() || 'أنت');
+    const rawUserId = user ? user.id : (localStorage.getItem('ssp_ff_player_id') || '1001');
+    const userId = String(rawUserId || '#1001').startsWith('#') ? String(rawUserId) : `#${String(rawUserId).replace(/^#/, '')}`;
 
     const poolA = [
-        { name: actor.name, studentId: actor.idTag, isUser: true },
+        { name: userName, studentId: userId, isUser: true },
         { name: 'سارة منصور', studentId: '#2045' },
         { name: 'كريم بن علي', studentId: '#3109' },
         { name: 'ليلى مراد', studentId: '#4412' }
@@ -442,22 +381,12 @@ window.setupBattleTeams = function setupBattleTeams() {
         { name: 'آدم كريم', studentId: '#8420' }
     ];
 
-    const prevScoresA = new Map((window.battleTeamA || []).map(p => [wbNormalizeIdTag(p.studentId, ''), Number(p.score) || 0]));
-    const prevScoresB = new Map((window.battleTeamB || []).map(p => [wbNormalizeIdTag(p.studentId, ''), Number(p.score) || 0]));
-
     window.battleTeamA = [];
     window.battleTeamB = [];
 
     for (let i = 0; i < window.battleSize; i++) {
-        const memberA = window.customTeamA[i] || poolA[i];
-        const idA = wbNormalizeIdTag(memberA.studentId, `#${1001 + i}`);
-        const scoreA = typeof memberA.score === 'number' ? memberA.score : (prevScoresA.get(idA) || 0);
-        window.battleTeamA.push({ ...memberA, studentId: idA, score: scoreA });
-
-        const memberB = window.customTeamB[i] || poolB[i];
-        const idB = wbNormalizeIdTag(memberB.studentId, `#${5102 + i}`);
-        const scoreB = typeof memberB.score === 'number' ? memberB.score : (prevScoresB.get(idB) || 0);
-        window.battleTeamB.push({ ...memberB, studentId: idB, score: scoreB });
+        window.battleTeamA.push({ ...(window.customTeamA[i] || poolA[i]), score: 0 });
+        window.battleTeamB.push({ ...(window.customTeamB[i] || poolB[i]), score: 0 });
     }
 
     window.renderBattleTeams();
@@ -532,13 +461,15 @@ window.clearBattleTimers = function clearBattleTimers() {
 window.startNewBattle = function startNewBattle() {
     window.clearBattleTimers();
     window.battleAnswered = false;
-    window.battleRoundAnswers = {};
     window.updateRoundsFromBar();
 
-    window.setupBattleTeams();
-    window.battleTeamA.forEach(p => { p.score = 0; });
-    window.battleTeamB.forEach(p => { p.score = 0; });
-    window.renderBattleTeams();
+    if (!window.battleTeamA.length || !window.battleTeamB.length) {
+        window.setupBattleTeams();
+    } else {
+        window.battleTeamA.forEach(p => { p.score = 0; });
+        window.battleTeamB.forEach(p => { p.score = 0; });
+        window.renderBattleTeams();
+    }
 
     const domain = document.getElementById('battleDomainSelect')?.value || 'programming';
     const bank = window.platformQuestionBank || {};
@@ -576,7 +507,6 @@ window.startNewBattle = function startNewBattle() {
 window.loadBattleRound = function loadBattleRound() {
     window.clearBattleTimers();
     window.battleAnswered = false;
-    window.battleRoundAnswers = {};
 
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) {
@@ -634,8 +564,6 @@ window.lockBattleOptions = function lockBattleOptions() {
 };
 
 window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound) {
-    if (window.autoAdvanceCountdownId) return;
-
     let secLeft = 3;
     const banner = document.getElementById('autoNextRoundBanner');
     if (banner) {
@@ -643,6 +571,11 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
         banner.textContent = isLastRound
             ? `⏳ انتهت جميع الجولات... عرض التقرير النهائي خلال ${secLeft} ثوانٍ`
             : `⏳ الانتقال تلقائياً إلى الجولة التالية خلال ${secLeft} ثوانٍ...`;
+    }
+
+    if (window.autoAdvanceCountdownId) {
+        clearInterval(window.autoAdvanceCountdownId);
+        window.autoAdvanceCountdownId = null;
     }
 
     window.autoAdvanceCountdownId = setInterval(() => {
@@ -669,217 +602,85 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
     }, 1000);
 };
 
-function wbRenderRoundStatusBanner() {
-    const feedback = document.getElementById('battleRoundFeedback');
-    if (!feedback) return;
-
-    const actor = wbGetCurrentActorInfo();
-    const myEntry = window.battleRoundAnswers[actor.idTag];
-    const opponentEntries = Object.entries(window.battleRoundAnswers)
-        .filter(([id]) => id !== actor.idTag);
-
-    const parts = [];
-    if (myEntry) {
-        if (myEntry.type === 'cant_answer') {
-            parts.push(`<span style="color:#fbbf24;font-weight:bold;">🏳️ أعلنت عدم قدرتك على الإجابة.</span>`);
-        } else if (myEntry.isCorrect) {
-            parts.push(`<span style="color:#10b981;font-weight:bold;">✅ إجابتك صحيحة! (+10 نقاط)</span>`);
-        } else {
-            parts.push(`<span style="color:#f87171;font-weight:bold;">❌ إجابتك خاطئة.</span>`);
-        }
-    }
-
-    if (opponentEntries.length) {
-        opponentEntries.forEach(([oppId, oppAns]) => {
-            const oppLabel = oppAns.playerName || oppId;
-            if (oppAns.type === 'cant_answer') {
-                parts.push(`<span style="color:#cbd5e1;">• ${wbEscapeHtml(oppLabel)}: أعلن عدم قدرته على الإجابة</span>`);
-            } else if (oppAns.isCorrect) {
-                parts.push(`<span style="color:#38bdf8;">• ${wbEscapeHtml(oppLabel)}: أجاب بشكل صحيح (+10 نقاط)</span>`);
-            } else {
-                parts.push(`<span style="color:#fca5a5;">• ${wbEscapeHtml(oppLabel)}: أجاب بإجابة غير صحيحة</span>`);
-            }
-        });
-    } else if (myEntry) {
-        parts.push(`<span style="color:#94a3b8;">⏳ بانتظار إجابة الخصم أو انتهاء الوقت...</span>`);
-    }
-
-    feedback.innerHTML = parts.join('<br>');
-}
-
-window.wbApplyRemoteMove = function wbApplyRemoteMove(movePayload) {
-    if (!movePayload || typeof movePayload !== 'object') return;
-    const actor = wbGetCurrentActorInfo();
-    const senderId = wbNormalizeIdTag(movePayload.senderId || movePayload.actorId || movePayload.playerId, '');
-    if (!senderId || senderId === actor.idTag) return;
-
-    const qObj = window.battleQuestions[window.battleRoundIndex];
-    const correctInfo = qObj ? wbGetCorrectOptionInfo(qObj) : { index: 0, formatted: '' };
-    const type = movePayload.type || 'answer';
-    const isCorrect = type === 'answer'
-        ? (typeof movePayload.isCorrect === 'boolean' ? movePayload.isCorrect : Number(movePayload.optionIndex) === correctInfo.index)
-        : false;
-
-    if (window.battleRoundAnswers[senderId]) return;
-
-    const senderName = String(movePayload.senderName || movePayload.actorName || senderId).trim();
-    window.battleRoundAnswers[senderId] = {
-        playerId: senderId,
-        playerName: senderName,
-        type,
-        isCorrect,
-        optionIndex: movePayload.optionIndex
-    };
-
-    if (type === 'answer' && isCorrect) {
-        const oppInB = window.battleTeamB.find(p => wbNormalizeIdTag(p.studentId, '') === senderId);
-        if (oppInB) {
-            oppInB.score = (Number(oppInB.score) || 0) + 10;
-        } else {
-            wbAddTeamPoints(window.battleTeamB, 10);
-        }
-    }
-
-    window.renderBattleTeams();
-    wbRenderRoundStatusBanner();
-
-    if (window.battleRoundAnswers[actor.idTag]) {
-        window.clearBattleTimers();
-        window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
-    }
-};
-
 window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
-    const actor = wbGetCurrentActorInfo();
-    if (window.battleRoundAnswers[actor.idTag]) return;
+    if (window.battleAnswered) return;
+    window.battleAnswered = true;
+    window.clearBattleTimers();
+    window.lockBattleOptions();
 
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
     const correctInfo = wbGetCorrectOptionInfo(qObj);
     const isCorrect = Number(choiceIdx) === correctInfo.index;
+    const feedback = document.getElementById('battleRoundFeedback');
     const chosenText = (Array.isArray(qObj.options) && qObj.options[choiceIdx]) ? qObj.options[choiceIdx] : String(choiceIdx);
 
-    window.battleRoundAnswers[actor.idTag] = {
-        playerId: actor.idTag,
-        playerName: actor.name,
-        type: 'answer',
-        isCorrect,
-        optionIndex: Number(choiceIdx)
-    };
-
-    document.querySelectorAll('#battleOptionsGrid .battle-opt-btn').forEach(b => { b.disabled = true; });
-    const cantBtn = document.getElementById('cantAnswerBtn');
-    if (cantBtn) cantBtn.disabled = true;
-
-    const hasRemoteOpponentInRoom = Array.isArray(window.customTeamB) && window.customTeamB.length > 0;
     let rivalSuccess = false;
-
     if (isCorrect) {
         wbAddTeamPoints(window.battleTeamA, 10);
-        if (!hasRemoteOpponentInRoom) {
-            rivalSuccess = Math.random() < 0.35;
-            if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
+        rivalSuccess = Math.random() < 0.35;
+        if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
+        if (feedback) {
+            feedback.innerHTML = `<span style="color:#10b981;font-weight:bold;">✅ إجابة صحيحة! (+10 نقاط لفريق Alpha)</span>`;
         }
-    } else if (!hasRemoteOpponentInRoom) {
+    } else {
         rivalSuccess = Math.random() < 0.75;
         if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
+        if (feedback) {
+            feedback.innerHTML = `<span style="color:#f87171;font-weight:bold;">❌ إجابة خاطئة! الإجابة الصحيحة هي (${correctInfo.letter}): ${wbEscapeHtml(correctInfo.text)}</span>`;
+        }
     }
 
-    const existingLog = window.battleLogs.find(l => l.round === window.battleRoundIndex + 1);
-    if (!existingLog) {
-        window.battleLogs.push({
-            round: window.battleRoundIndex + 1,
-            question: qObj.q || '',
-            correctText: correctInfo.formatted,
-            userCorrect: isCorrect,
-            cantAnswer: false,
-            rivalSuccess
-        });
-    } else {
-        existingLog.userCorrect = isCorrect;
-        existingLog.cantAnswer = false;
-    }
-
-    wbRenderRoundStatusBanner();
-    window.renderBattleTeams();
+    window.battleLogs.push({
+        round: window.battleRoundIndex + 1,
+        question: qObj.q || '',
+        correctText: correctInfo.formatted,
+        userCorrect: isCorrect,
+        cantAnswer: false,
+        rivalSuccess
+    });
 
     window.__wbDirectMoveRecorded = true;
-    wbRecordMoveLive({
-        type: 'answer',
-        senderId: actor.idTag,
-        senderName: actor.name,
-        optionIndex: Number(choiceIdx),
-        optionText: chosenText,
-        isCorrect
-    });
+    wbRecordMoveLive({ type: 'answer', optionIndex: Number(choiceIdx), optionText: chosenText, isCorrect });
+    window.renderBattleTeams();
     wbSyncRoomLiveState();
     setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
-
-    const hasOpponentAnswered = Object.keys(window.battleRoundAnswers).some(id => id !== actor.idTag);
-    if (!hasRemoteOpponentInRoom || hasOpponentAnswered) {
-        window.battleAnswered = true;
-        window.clearBattleTimers();
-        window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
-    }
+    window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
 window.declareCantAnswer = function declareCantAnswer() {
-    const actor = wbGetCurrentActorInfo();
-    if (window.battleRoundAnswers[actor.idTag]) return;
+    if (window.battleAnswered) return;
+    window.battleAnswered = true;
+    window.clearBattleTimers();
+    window.lockBattleOptions();
 
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
     const correctInfo = wbGetCorrectOptionInfo(qObj);
-    window.battleRoundAnswers[actor.idTag] = {
-        playerId: actor.idTag,
-        playerName: actor.name,
-        type: 'cant_answer',
-        isCorrect: false
-    };
+    wbAddTeamPoints(window.battleTeamB, 10);
 
-    document.querySelectorAll('#battleOptionsGrid .battle-opt-btn').forEach(b => { b.disabled = true; });
-    const cantBtn = document.getElementById('cantAnswerBtn');
-    if (cantBtn) cantBtn.disabled = true;
-
-    const hasRemoteOpponentInRoom = Array.isArray(window.customTeamB) && window.customTeamB.length > 0;
-    if (!hasRemoteOpponentInRoom) {
-        wbAddTeamPoints(window.battleTeamB, 10);
+    const feedback = document.getElementById('battleRoundFeedback');
+    if (feedback) {
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">🏳️ أعلنت عدم قدرتك على الإجابة. (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
-    const existingLog = window.battleLogs.find(l => l.round === window.battleRoundIndex + 1);
-    if (!existingLog) {
-        window.battleLogs.push({
-            round: window.battleRoundIndex + 1,
-            question: qObj.q || '',
-            correctText: correctInfo.formatted,
-            userCorrect: false,
-            cantAnswer: true,
-            rivalSuccess: !hasRemoteOpponentInRoom
-        });
-    } else {
-        existingLog.cantAnswer = true;
-    }
-
-    wbRenderRoundStatusBanner();
-    window.renderBattleTeams();
+    window.battleLogs.push({
+        round: window.battleRoundIndex + 1,
+        question: qObj.q || '',
+        correctText: correctInfo.formatted,
+        userCorrect: false,
+        cantAnswer: true,
+        rivalSuccess: true
+    });
 
     window.__wbDirectMoveRecorded = true;
-    wbRecordMoveLive({
-        type: 'cant_answer',
-        senderId: actor.idTag,
-        senderName: actor.name
-    });
+    wbRecordMoveLive({ type: 'cant_answer' });
+    window.renderBattleTeams();
     wbSyncRoomLiveState();
     setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
-
-    const hasOpponentAnswered = Object.keys(window.battleRoundAnswers).some(id => id !== actor.idTag);
-    if (!hasRemoteOpponentInRoom || hasOpponentAnswered) {
-        window.battleAnswered = true;
-        window.clearBattleTimers();
-        window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
-    }
+    window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
 window.handleRoundTimeout = function handleRoundTimeout() {
@@ -888,34 +689,29 @@ window.handleRoundTimeout = function handleRoundTimeout() {
     window.clearBattleTimers();
     window.lockBattleOptions();
 
-    const actor = wbGetCurrentActorInfo();
     const qObj = window.battleQuestions[window.battleRoundIndex];
     if (!qObj) return;
 
     const correctInfo = wbGetCorrectOptionInfo(qObj);
-    const hasRemoteOpponentInRoom = Array.isArray(window.customTeamB) && window.customTeamB.length > 0;
-    if (!hasRemoteOpponentInRoom && !window.battleRoundAnswers[actor.idTag]) {
-        wbAddTeamPoints(window.battleTeamB, 10);
+    wbAddTeamPoints(window.battleTeamB, 10);
+
+    const feedback = document.getElementById('battleRoundFeedback');
+    if (feedback) {
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
     window.battleLogs.push({
         round: window.battleRoundIndex + 1,
         question: qObj.q || '',
         correctText: correctInfo.formatted,
-        userCorrect: Boolean(window.battleRoundAnswers[actor.idTag]?.isCorrect),
+        userCorrect: false,
         cantAnswer: false,
-        rivalSuccess: !hasRemoteOpponentInRoom
+        rivalSuccess: true
     });
 
-    const feedback = document.getElementById('battleRoundFeedback');
-    if (feedback) {
-        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
-    }
-
-    window.renderBattleTeams();
-
     window.__wbDirectMoveRecorded = true;
-    wbRecordMoveLive({ type: 'timeout', senderId: actor.idTag, senderName: actor.name });
+    wbRecordMoveLive({ type: 'timeout' });
+    window.renderBattleTeams();
     wbSyncRoomLiveState();
     setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
@@ -983,8 +779,7 @@ window.saveBattleSummaryToNote = function saveBattleSummaryToNote() {
     const scoreB = window.battleTeamB.reduce((s, p) => s + (Number(p.score) || 0), 0);
     const lines = [`⚔️ ملخص معركة (${window.battleRoomInfo.name} - ${window.battleSize}v${window.battleSize}): Alpha ${scoreA} - ${scoreB} Omega`];
     window.battleLogs.forEach(l => lines.push(`• الجولة ${l.round}: ${l.question} | الصحيح: ${l.correctText}`));
-    wbAppendNote(lines.join('
-'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
+    wbAppendNote(lines.join('\n'), 'تم حفظ ملخص المعركة في دفتر الملاحظات 📝');
 };
 
 /* ==================== معركة AI ضد AI حسب الـ ID ==================== */
@@ -994,22 +789,19 @@ window.getDefaultOpponentProfile = function getDefaultOpponentProfile(normId) {
             id: '#3109',
             name: 'ياسين قاسمي',
             agentName: 'وكيل الخصم — ياسين قاسمي (#3109)',
-            sources: 'المصدر 1: المعمارية المعيارية وقابلية التوسع تمنع إعادة البناء المكلفة.
-المصدر 2: توثيق الواجهات والاختبارات الآلية يحافظ على استقرار المشروع عند نمو الفريق.'
+            sources: 'المصدر 1: المعمارية المعيارية وقابلية التوسع تمنع إعادة البناء المكلفة.\nالمصدر 2: توثيق الواجهات والاختبارات الآلية يحافظ على استقرار المشروع عند نمو الفريق.'
         },
         '#2045': {
             id: '#2045',
             name: 'سارة منصور',
             agentName: 'وكيل الخصم — سارة منصور (#2045)',
-            sources: 'المصدر 1: تجربة المستخدم الواضحة وتقليل خطوات التفاعل يرفعان كفاءة التعلّم.
-المصدر 2: التغذية الراجعة الفورية تساعد الطالب على تصحيح المفاهيم فوراً.'
+            sources: 'المصدر 1: تجربة المستخدم الواضحة وتقليل خطوات التفاعل يرفعان كفاءة التعلّم.\nالمصدر 2: التغذية الراجعة الفورية تساعد الطالب على تصحيح المفاهيم فوراً.'
         },
         '#7312': {
             id: '#7312',
             name: 'سمير منصوري',
             agentName: 'وكيل الخصم — سمير منصوري (#7312)',
-            sources: 'المصدر 1: الموازنة بين البساطة والمرونة تجعل المشروع قابلاً للتشغيل على مختلف الأجهزة.
-المصدر 2: التحقق من المدخلات والأمان يحمي بيانات المستخدمين.'
+            sources: 'المصدر 1: الموازنة بين البساطة والمرونة تجعل المشروع قابلاً للتشغيل على مختلف الأجهزة.\nالمصدر 2: التحقق من المدخلات والأمان يحمي بيانات المستخدمين.'
         }
     };
     if (presets[normId]) return presets[normId];
@@ -1017,8 +809,7 @@ window.getDefaultOpponentProfile = function getDefaultOpponentProfile(normId) {
         id: normId,
         name: `الخصم ${normId}`,
         agentName: `وكيل الخصم (${normId})`,
-        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.
-المصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.`
+        sources: `المصدر 1 (${normId}): تحليل المشكلة من زاوية الكفاءة العملية وسهولة الصيانة.\nالمصدر 2 (${normId}): دعم القرارات التقنية بأمثلة قابلة للقياس والتحقق.`
     };
 };
 
@@ -1109,8 +900,7 @@ window.loadCurrentNoteIntoAiSource = function loadCurrentNoteIntoAiSource(slot) 
 };
 
 window.parseSourcesList = function parseSourcesList(rawText) {
-    const lines = String(rawText || '').split(/?
-+/).map(l => l.trim()).filter(Boolean);
+    const lines = String(rawText || '').split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
     return lines.length ? lines : ['مرجع عام داعم للحجة التحليلية.'];
 };
 
@@ -1251,8 +1041,7 @@ window.finalizeAiDebateAndGenerateResearch = function finalizeAiDebateAndGenerat
         ...roundRecords.flatMap(rec => [`- ${rec.s1}`, `- ${rec.s2}`])
     ];
 
-    window.generatedBattleResearchText = lines.join('
-');
+    window.generatedBattleResearchText = lines.join('\n');
 
     const resBox = document.getElementById('aiBattleResearchResult');
     if (resBox) {
