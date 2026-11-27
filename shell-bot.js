@@ -198,9 +198,10 @@
         }
         function escapeHtml(text) { if (!text) return ''; return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
+        // Sign-in is handled only by Firebase Authentication (firebase-auth.js).
+        // The old local login bootstrap is removed: it bypassed Firebase and left
+        // currentUser without a uid, which breaks every database rule.
         window.addEventListener('DOMContentLoaded', () => {
-            initDynamicPwaManifest();
-            const savedUser = JSON.parse(localStorage.getItem('smartStudentUser') || 'null');
-            if (savedUser && savedUser.email) { currentUser = savedUser; enterApp(); }
-            else { toggleAuthMode('login'); }
+            if (typeof initDynamicPwaManifest === 'function') initDynamicPwaManifest();
+            try { localStorage.removeItem('smartStudentUser'); } catch (_) {}
         });

@@ -189,4 +189,13 @@
         const data = await res.json();
         return String(data.text || '');
     };
+
+    /* ---------- 10. Assistant entry point called by shell-bot.js ----------
+       Placeholder: defines the hook so shell-bot.js no longer warns. It does
+       nothing else until the assistant is connected to Platform.askAi. */
+    if (typeof window.initAiAssistant !== 'function') {
+        window.initAiAssistant = function initAiAssistant() {
+            console.info('[assistant] ready; AI proxy configured:', !!Platform.AI_PROXY_URL);
+        };
+    }
 })();
