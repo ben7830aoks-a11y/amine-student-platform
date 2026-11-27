@@ -602,7 +602,7 @@ window.scheduleAutoAdvanceRound = function scheduleAutoAdvanceRound(isLastRound)
     }, 1000);
 };
 
-window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
+window.submitBattleChoice = function submitBattleChoice(choiceIdx, fromRival = false) {
     if (window.battleAnswered) return;
     window.battleAnswered = true;
     window.clearBattleTimers();
@@ -617,7 +617,25 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
     const chosenText = (Array.isArray(qObj.options) && qObj.options[choiceIdx]) ? qObj.options[choiceIdx] : String(choiceIdx);
 
     let rivalSuccess = false;
-    if (isCorrect) {
+    if (window.battleLiveRival) {
+        // Live match: every point comes from a real answer, never from chance.
+        if (fromRival) {
+            rivalSuccess = isCorrect;
+            if (isCorrect) wbAddTeamPoints(window.battleTeamB, 10);
+            if (feedback) {
+                feedback.innerHTML = isCorrect
+                    ? `<span style="color:#10b981;font-weight:bold;">✅ أجاب الخصم بشكل صحيح! (+10 نقاط لفريق Omega)</span>`
+                    : `<span style="color:#f87171;font-weight:bold;">❌ أجاب الخصم بشكل خاطئ. الإجابة الصحيحة هي (${correctInfo.letter}): ${wbEscapeHtml(correctInfo.text)}</span>`;
+            }
+        } else {
+            if (isCorrect) wbAddTeamPoints(window.battleTeamA, 10);
+            if (feedback) {
+                feedback.innerHTML = isCorrect
+                    ? `<span style="color:#10b981;font-weight:bold;">✅ إجابة صحيحة! (+10 نقاط لفريق Alpha)</span>`
+                    : `<span style="color:#f87171;font-weight:bold;">❌ إجابة خاطئة! الإجابة الصحيحة هي (${correctInfo.letter}): ${wbEscapeHtml(correctInfo.text)}</span>`;
+            }
+        }
+    } else if (isCorrect) {
         wbAddTeamPoints(window.battleTeamA, 10);
         rivalSuccess = Math.random() < 0.35;
         if (rivalSuccess) wbAddTeamPoints(window.battleTeamB, 10);
@@ -636,20 +654,20 @@ window.submitBattleChoice = function submitBattleChoice(choiceIdx) {
         round: window.battleRoundIndex + 1,
         question: qObj.q || '',
         correctText: correctInfo.formatted,
-        userCorrect: isCorrect,
+        userCorrect: fromRival ? false : isCorrect,
         cantAnswer: false,
         rivalSuccess
     });
 
     window.__wbDirectMoveRecorded = true;
-    wbRecordMoveLive({ type: 'answer', optionIndex: Number(choiceIdx), optionText: chosenText, isCorrect });
+    if (!fromRival) wbRecordMoveLive({ type: 'answer', optionIndex: Number(choiceIdx), optionText: chosenText, isCorrect });
     window.renderBattleTeams();
     wbSyncRoomLiveState();
     setTimeout(() => { window.__wbDirectMoveRecorded = false; }, 50);
     window.scheduleAutoAdvanceRound(window.battleRoundIndex >= window.battleTotalRounds - 1);
 };
 
-window.declareCantAnswer = function declareCantAnswer() {
+window.declareCantAnswer = function declareCantAnswer(fromRival = false) {
     if (window.battleAnswered) return;
     window.battleAnswered = true;
     window.clearBattleTimers();
@@ -659,11 +677,15 @@ window.declareCantAnswer = function declareCantAnswer() {
     if (!qObj) return;
 
     const correctInfo = wbGetCorrectOptionInfo(qObj);
-    wbAddTeamPoints(window.battleTeamB, 10);
+    const cantWinner = window.battleLiveRival && fromRival ? window.battleTeamA : window.battleTeamB;
+    wbAddTeamPoints(cantWinner, 10);
 
     const feedback = document.getElementById('battleRoundFeedback');
     if (feedback) {
-        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">🏳️ أعلنت عدم قدرتك على الإجابة. (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
+        const cantText = cantWinner === window.battleTeamA
+            ? '🏳️ أعلن الخصم عدم قدرته على الإجابة. (+10 نقاط لفريق Alpha)'
+            : '🏳️ أعلنت عدم قدرتك على الإجابة. (+10 نقاط لفريق Omega)';
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">${cantText} — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
     window.battleLogs.push({
@@ -693,11 +715,11 @@ window.handleRoundTimeout = function handleRoundTimeout() {
     if (!qObj) return;
 
     const correctInfo = wbGetCorrectOptionInfo(qObj);
-    wbAddTeamPoints(window.battleTeamB, 10);
+    if (!window.battleLiveRival) wbAddTeamPoints(window.battleTeamB, 10);
 
     const feedback = document.getElementById('battleRoundFeedback');
     if (feedback) {
-        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! (+10 نقاط لفريق Omega) — الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
+        feedback.innerHTML = `<span style="color:#fbbf24;font-weight:bold;">⏰ انتهى الوقت! ${window.battleLiveRival ? '' : '(+10 نقاط لفريق Omega) '}— الإجابة الصحيحة: ${wbEscapeHtml(correctInfo.formatted)}</span>`;
     }
 
     window.battleLogs.push({
@@ -1132,7 +1154,7 @@ if (typeof window.sendLiveInviteToOpponent !== 'function') {
             window.sendBattleInviteToId(chosen);
         } else {
             window.syncAiOpponentUi(chosen);
-            wbToast(`تم تجهيز الدعوة للخصم ${chosen}`);
+            wbToast('تعذر إرسال الدعوة: خدمة الدعوات السحابية غير متاحة', true);
         }
     };
 }

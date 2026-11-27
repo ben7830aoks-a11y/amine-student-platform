@@ -2638,6 +2638,7 @@ ${sciCtx}`;
             currentBattleRoomListener = (snap) => {
                 if (!snap || !snap.exists()) return;
                 if (!window.battleIsGuest) return;
+                window.battleLiveRival = true;
                 const val = snap.val() || {};
                 if (val.hostSessionId) window.battleHostSessionId = val.hostSessionId;
                 applyRemoteBattleSnapshot(val);
@@ -2654,13 +2655,14 @@ ${sciCtx}`;
                 if (ts && ts < roomJoinTime - 2000) return;
 
                 if (!window.battleIsGuest && typeof window.submitBattleChoice === "function") {
+                    window.battleLiveRival = true;
                     if (move.type === "answer") {
                         const idx = Number.isInteger(move.optionIndex) && move.optionIndex >= 0
                             ? move.optionIndex
                             : mapRemoteOptionToLocal(move.optionText);
-                        if (idx >= 0) window.submitBattleChoice(idx);
+                        if (idx >= 0) window.submitBattleChoice(idx, true);
                     } else if (move.type === "cant_answer" && typeof window.declareCantAnswer === "function") {
-                        window.declareCantAnswer();
+                        window.declareCantAnswer(true);
                     }
                 }
 
@@ -3442,6 +3444,10 @@ ${sciCtx}`;
                 return false;
             }
         }
+
+        window.sendBattleInviteToId = function sendBattleInviteToId(rawTargetId, roomCodeOverride, roomNameOverride) {
+            return sendCloudInviteToId(rawTargetId, roomCodeOverride, roomNameOverride);
+        };
 
         function addOpponentToBattleTeamState(userObj, targetTeam = "B") {
             if (!userObj || !userObj.id) return;
