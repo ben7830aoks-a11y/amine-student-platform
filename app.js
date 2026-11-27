@@ -670,7 +670,9 @@ function insertMathFormulaBlock() {
             }
             const md = prompt('أدخل نص Markdown لتحويله إلى تنسيق منسق:', '### عنوان فرعي\n- **نقطة مهمة:** شرح مختصر\n- `code_example()`');
             if (!md || !md.trim()) return;
-            const htmlOut = marked.parse(md);
+            const htmlOut = (window.Platform && window.Platform.markdownToSafeHtml)
+                ? window.Platform.markdownToSafeHtml(md)
+                : md.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
             const holder = document.createElement('div');
             holder.innerHTML = htmlOut;
             editor.appendChild(holder);
@@ -2513,7 +2515,12 @@ ${sciCtx}`;
                                 const cleanOptText = String(opt.text || "").replace(/^[A-D1-4]\s*/, "").trim();
                                 const badge = existingBtns[i].querySelector(".opt-letter");
                                 if (badge) {
-                                    existingBtns[i].innerHTML = `<span class="opt-letter">${letters[i] || (i + 1)}</span><span>${cleanOptText}</span>`;
+                                    const letterEl = document.createElement("span");
+                                    letterEl.className = "opt-letter";
+                                    letterEl.textContent = letters[i] || String(i + 1);
+                                    const textEl = document.createElement("span");
+                                    textEl.textContent = cleanOptText;
+                                    existingBtns[i].replaceChildren(letterEl, textEl);
                                 } else {
                                     existingBtns[i].textContent = opt.text;
                                 }
@@ -2559,7 +2566,11 @@ ${sciCtx}`;
                 if (summaryArea && typeof data.summaryHidden === "boolean") {
                     summaryArea.classList.toggle("hidden", data.summaryHidden);
                     if (!data.summaryHidden && typeof data.summaryHtml === "string" && data.summaryHtml) {
-                        summaryArea.innerHTML = data.summaryHtml;
+                        if (window.Platform && window.Platform.sanitize) {
+                            summaryArea.innerHTML = window.Platform.sanitize(data.summaryHtml);
+                        } else {
+                            summaryArea.textContent = data.summaryHtml;
+                        }
                     }
                 }
             } finally {
