@@ -2425,6 +2425,7 @@ ${sciCtx}`;
                 teamB: teamBSnapshot,
                 hostId: actor.id,
                 hostName: actor.name,
+                hostSessionId: window.battleHostSessionId || CLIENT_SESSION_ID,
                 sourceClientId: CLIENT_SESSION_ID,
                 seq: Date.now(),
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -2517,6 +2518,12 @@ ${sciCtx}`;
                                     existingBtns[i].textContent = opt.text;
                                 }
                                 existingBtns[i].disabled = !!window.battleAnswered;
+                                existingBtns[i].onclick = () => {
+                                    if (window.battleIsGuest) {
+                                        Array.from(optsGrid.querySelectorAll("button")).forEach(x => { x.disabled = true; });
+                                        recordBattleMoveToRoom(code, { type: "answer", optionIndex: i, optionText: cleanOptText });
+                                    }
+                                };
                             }
                         });
                     } else {
@@ -2528,6 +2535,11 @@ ${sciCtx}`;
                             b.textContent = opt.text;
                             b.disabled = !!window.battleAnswered;
                             b.onclick = () => {
+                                if (window.battleIsGuest) {
+                                    Array.from(optsGrid.querySelectorAll("button")).forEach(x => { x.disabled = true; });
+                                    recordBattleMoveToRoom(code, { type: "answer", optionIndex: opt.index, optionText: opt.text });
+                                    return;
+                                }
                                 const localIdx = mapRemoteOptionToLocal(opt.text);
                                 if (localIdx >= 0 && typeof window.submitBattleChoice === "function") {
                                     window.submitBattleChoice(localIdx);
@@ -2567,6 +2579,17 @@ ${sciCtx}`;
             return null;
         }
 
+        window.handleCantAnswerClick = function handleCantAnswerClick() {
+            if (window.battleIsGuest) {
+                document.querySelectorAll("#battleOptionsGrid button").forEach(x => { x.disabled = true; });
+                const c = document.getElementById("cantAnswerBtn");
+                if (c) c.disabled = true;
+                recordBattleMoveToRoom(getCurrentRoomCodeClean(), { type: "cant_answer", optionIndex: -1, optionText: "عجز" });
+                return;
+            }
+            if (typeof window.declareCantAnswer === "function") window.declareCantAnswer();
+        };
+
         function mapRemoteOptionToLocal(text) {
             const q = window.battleQuestions && window.battleQuestions[window.battleRoundIndex];
             if (!q || !Array.isArray(q.options)) return -1;
@@ -2590,6 +2613,7 @@ ${sciCtx}`;
 
         function publishBattleStateNow() {
             if (isApplyingRemoteBattleState) return;
+            if (window.battleIsGuest) return;
             const db = getSafeBattleDb();
             if (!db) return;
             const snap = collectCurrentBattleSnapshot();
@@ -2613,7 +2637,10 @@ ${sciCtx}`;
             currentBattleRoomRef = db.ref(`public/battles/${cleanCode}`);
             currentBattleRoomListener = (snap) => {
                 if (!snap || !snap.exists()) return;
-                applyRemoteBattleSnapshot(snap.val());
+                if (!window.battleIsGuest) return;
+                const val = snap.val() || {};
+                if (val.hostSessionId) window.battleHostSessionId = val.hostSessionId;
+                applyRemoteBattleSnapshot(val);
             };
             currentBattleRoomRef.on("value", currentBattleRoomListener);
 
@@ -2625,6 +2652,17 @@ ${sciCtx}`;
                 if (move.sourceClientId === CLIENT_SESSION_ID) return;
                 const ts = Number(move.createdAt || 0);
                 if (ts && ts < roomJoinTime - 2000) return;
+
+                if (!window.battleIsGuest && typeof window.submitBattleChoice === "function") {
+                    if (move.type === "answer") {
+                        const idx = Number.isInteger(move.optionIndex) && move.optionIndex >= 0
+                            ? move.optionIndex
+                            : mapRemoteOptionToLocal(move.optionText);
+                        if (idx >= 0) window.submitBattleChoice(idx);
+                    } else if (move.type === "cant_answer" && typeof window.declareCantAnswer === "function") {
+                        window.declareCantAnswer();
+                    }
+                }
 
                 const statusEl = document.getElementById("battleLiveSyncStatus");
                 if (statusEl) {
@@ -2693,6 +2731,7 @@ ${sciCtx}`;
             }
 
             setCurrentRoomUi(targetRoom, roomName);
+            window.battleIsGuest = true;
             attachBattleRoomSyncListeners(targetRoom);
 
             const db = getSafeBattleDb();
@@ -2898,8 +2937,8 @@ ${sciCtx}`;
                 joinBtn.onclick = () => {
                     const code = cleanKey(roomJoinInput.value || getCurrentRoomCodeClean(), "ROOM-101");
                     setCurrentRoomUi(code);
+                    window.battleIsGuest = true;
                     attachBattleRoomSyncListeners(code);
-                    publishBattleStateNow();
                     infoSpan.textContent = `🔗 متصل بالغرفة #${code}`;
                     wbToast(`تم الانضمام ومزامنة الغرفة #${code}`);
                 };
@@ -2966,6 +3005,7 @@ ${sciCtx}`;
                     if (!btn) return;
                     const code = getCurrentRoomCodeClean();
 
+                    if (window.battleIsGuest) return;
                     if (btn.closest("#battleOptionsGrid")) {
                         const allBtns = Array.from(document.querySelectorAll("#battleOptionsGrid button"));
                         const idx = allBtns.indexOf(btn);
