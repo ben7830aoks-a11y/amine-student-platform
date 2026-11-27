@@ -120,6 +120,25 @@
                 if (p.exists()) studentId = String(p.val());
             } catch (_) {}
         }
+        // Repair: the student ID must be a 6-digit ID reserved for THIS account in studentIndex.
+        // Older accounts can carry a 4-digit or unreserved value; replace it with a valid one.
+        try {
+            const db = firebase.database();
+            let reservedOk = false;
+            if (/^\d{6}$/.test(studentId)) {
+                const idx = await db.ref('studentIndex/' + studentId).get();
+                reservedOk = idx.exists() && idx.val() === user.uid;
+            }
+            if (!reservedOk) {
+                studentId = await reserveStudentId(user.uid, db);
+                await db.ref('users/' + user.uid + '/studentId').set(studentId);
+                await db.ref('publicProfiles/' + user.uid + '/studentId').set(studentId);
+                toast('تم تحديث رقمك الدراسي إلى ' + studentId);
+            }
+        } catch (err) {
+            console.error('[auth] student ID repair failed', err);
+        }
+
         // Every legacy reader takes the ID from this key, so make it the account's real ID.
         // Without this, an old 4-digit value left in the browser keeps showing up.
         if (studentId) {
