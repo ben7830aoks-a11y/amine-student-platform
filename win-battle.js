@@ -1104,7 +1104,8 @@ window.publishGeneratedResearchToCommunity = function publishGeneratedResearchTo
             title,
             domain: 'الذكاء الاصطناعي',
             content,
-            authorId: rawId,
+            authorId: (window.getCurrentUid && window.getCurrentUid()) || rawId,
+            authorStudentId: rawId,
             authorName,
             createdAt: firebase.database.ServerValue.TIMESTAMP
         }).then(() => {

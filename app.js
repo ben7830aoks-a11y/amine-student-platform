@@ -117,8 +117,10 @@
 
                 if (!rtdb) return;
                 try {
-                    await rtdb.ref('users/' + myId).update({
-                        id: myId,
+                    const myUid = window.getCurrentUid ? window.getCurrentUid() : '';
+                    if (!myUid) return;
+                    await rtdb.ref('users/' + myUid).update({
+                        studentId: myId,
                         name: myName,
                         lastSeen: Date.now()
                     });
@@ -165,7 +167,9 @@
                 if (!rtdb || friendsListenerAttachedFor === myId) return;
                 friendsListenerAttachedFor = myId;
 
-                rtdb.ref('friends/' + myId).on('value', (snap) => {
+                const friendsUid = window.getCurrentUid ? window.getCurrentUid() : '';
+                if (!friendsUid) return;
+                rtdb.ref('friends/' + friendsUid).on('value', (snap) => {
                     const arr = [];
                     if (snap && snap.exists()) {
                         snap.forEach((child) => {
@@ -223,7 +227,12 @@
                 if (feedback) feedback.textContent = 'جاري البحث عن #' + targetId + '...';
 
                 try {
-                    const snap = await rtdb.ref('users/' + targetId).get();
+                    const resolvedUid = await window.resolveUidByStudentId(targetId);
+                    if (!resolvedUid) {
+                        if (feedback) feedback.textContent = 'لم يتم العثور على مستخدم مسجل بالـ ID #' + targetId + '.';
+                        return;
+                    }
+                    const snap = await rtdb.ref('publicProfiles/' + resolvedUid).get();
                     if (!snap.exists()) {
                         if (feedback) feedback.textContent = 'لم يتم العثور على مستخدم مسجل بالـ ID #' + targetId + '.';
                         return;
@@ -232,7 +241,8 @@
                     const data = snap.val() || {};
                     lastFoundFriend = {
                         id: targetId,
-                        name: String(data.name || 'طالب').slice(0, 40)
+                        uid: resolvedUid,
+                        name: String(data.username || data.name || 'طالب').slice(0, 40)
                     };
 
                     if (feedback) feedback.textContent = '';
@@ -274,7 +284,9 @@
                 }
 
                 try {
-                    await rtdb.ref('friends/' + myId + '/' + target.id).set({
+                    const myFriendsUid = window.getCurrentUid ? window.getCurrentUid() : '';
+                    await rtdb.ref('friends/' + myFriendsUid + '/' + target.uid).set({
+                        uid: target.uid,
                         id: target.id,
                         name: target.name || 'طالب',
                         addedAt: Date.now()
@@ -1968,7 +1980,7 @@ ${sciCtx}`;
             try { localStorage.setItem("ssp_ff_player_id", id); } catch (_) {}
             const navName = document.getElementById("navUsername")?.textContent || "";
             const name = String((u && u.username) || navName || "طالب").trim().slice(0, 40) || "طالب";
-            return { id, name };
+            return { id, name, uid: (window.getCurrentUid ? window.getCurrentUid() : '') };
         }
 
         // 1) قسم غرفة المذاكرة العامة (#section-studyRoom)
@@ -1982,7 +1994,7 @@ ${sciCtx}`;
             const me = getActor();
             const statusSelect = document.getElementById("myStudyStatus");
             const currentStatus = (statusSelect && statusSelect.value) || "أراجع المحاضرات 📚";
-            const memberRef = rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${me.id}`);
+            const memberRef = rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${me.uid || me.id}`);
 
             memberRef.set({
                 id: me.id,
@@ -2035,7 +2047,7 @@ ${sciCtx}`;
             if (statusSelect) {
                 statusSelect.addEventListener("change", () => {
                     const actor = getActor();
-                    rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${actor.id}`).update({
+                    rtdb.ref(`public/studyRoom/${STUDY_ROOM_ID}/members/${actor.uid || actor.id}`).update({
                         name: actor.name,
                         status: statusSelect.value,
                         online: true,
@@ -2734,7 +2746,7 @@ ${sciCtx}`;
             const actor = getActor();
             const targetRoom = cleanKey(inv.roomCode || "ROOM-101", "ROOM-101");
             const roomName = inv.roomName || `غرفة #${targetRoom}`;
-            const hostId = cleanKey(inv.fromId || "1001", "1001");
+            const hostId = cleanKey(inv.fromUid || inv.fromId || "1001", "1001");
             const hostName = inv.fromName || "مضيف الغرفة";
 
             if (typeof jumpToSection === "function") {
@@ -2803,15 +2815,15 @@ ${sciCtx}`;
 
                     syncOpponentIntoBattleTeams(joinedOpponentObj, { id: effectiveHostId, name: effectiveHostName });
 
-                    if (inv.inviteId && actor.id) {
-                        await db.ref(`public/invites/${actor.id}/${inv.inviteId}`).update({
+                    if (inv.inviteId && (actor.uid || actor.id)) {
+                        await db.ref(`public/invites/${actor.uid || actor.id}/${inv.inviteId}`).update({
                             status: "accepted",
-                            acceptedById: actor.id,
+                            acceptedById: actor.uid || actor.id,
                             acceptedByName: actor.name,
                             acceptedAt: firebase.database.ServerValue.TIMESTAMP
                         });
                     }
-                    if (hostId && hostId !== actor.id) {
+                    if (hostId && hostId !== (actor.uid || actor.id)) {
                         await db.ref(`public/inviteResponses/${hostId}`).push().set({
                             type: "invite_accepted",
                             roomCode: targetRoom,
@@ -2841,7 +2853,7 @@ ${sciCtx}`;
             const actor = getActor();
             if (db && inv && inv.inviteId && actor.id) {
                 try {
-                    await db.ref(`public/invites/${actor.id}/${inv.inviteId}`).update({
+                    await db.ref(`public/invites/${actor.uid || actor.id}/${inv.inviteId}`).update({
                         status: "declined",
                         declinedAt: firebase.database.ServerValue.TIMESTAMP
                     });
@@ -2862,7 +2874,7 @@ ${sciCtx}`;
             currentInviteListenerId = actor.id;
             const connectedSince = Date.now();
 
-            const invitesRef = db.ref(`public/invites/${actor.id}`);
+            const invitesRef = db.ref(`public/invites/${actor.uid || actor.id}`);
             invitesRef.on("child_added", (snap) => {
                 if (!snap || !snap.exists()) return;
                 const val = snap.val() || {};
@@ -2881,7 +2893,7 @@ ${sciCtx}`;
                 wbToast(`📩 دعوة معركة من ${invObj.fromName} (#${invObj.fromId})`);
             });
 
-            const responsesRef = db.ref(`public/inviteResponses/${actor.id}`);
+            const responsesRef = db.ref(`public/inviteResponses/${actor.uid || actor.id}`);
             responsesRef.on("child_added", (snap) => {
                 if (!snap || !snap.exists()) return;
                 const val = snap.val() || {};
@@ -2979,14 +2991,18 @@ ${sciCtx}`;
                     attachBattleRoomSyncListeners(code);
                     publishBattleStateNow();
 
-                    rtdb.ref(`public/invites/${targetId}`).push().set({
-                        fromId: me.id,
-                        fromName: me.name,
-                        roomCode: code,
-                        roomName,
-                        status: "pending",
-                        sourceClientId: CLIENT_SESSION_ID,
-                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    window.resolveUidByStudentId(targetId).then((tUid) => {
+                        if (!tUid) throw new Error("unregistered");
+                        return rtdb.ref(`public/invites/${tUid}`).push().set({
+                            fromId: me.id,
+                            fromUid: me.uid || "",
+                            fromName: me.name,
+                            roomCode: code,
+                            roomName,
+                            status: "pending",
+                            sourceClientId: CLIENT_SESSION_ID,
+                            createdAt: firebase.database.ServerValue.TIMESTAMP
+                        });
                     }).then(() => {
                         infoSpan.textContent = `📩 تم إرسال دعوة المعركة إلى #${targetId} للغرفة #${code}`;
                         wbToast(`تم إرسال دعوة إلى #${targetId} 📩`);
@@ -3100,7 +3116,7 @@ ${sciCtx}`;
 
                 const authorEl = document.createElement("div");
                 authorEl.style.cssText = "font-size:12px; color:#94a3b8; margin-bottom:10px;";
-                authorEl.textContent = `بواسطة: ${proj.authorName || "طالب"} (#${proj.authorId || "?"})`;
+                authorEl.textContent = `بواسطة: ${proj.authorName || "طالب"} (#${proj.authorStudentId || proj.authorId || "?"})`;
 
                 const contentEl = document.createElement("pre");
                 contentEl.style.cssText = "background:#020617; border:1px solid rgba(148,163,184,0.2); border-radius:8px; padding:12px; color:#e2e8f0; font-size:13px; white-space:pre-wrap; overflow-x:auto; margin:0 0 12px;";
@@ -3110,8 +3126,8 @@ ${sciCtx}`;
                 const dislikesObj = proj.reactions?.dislikes || {};
                 const likeIds = Object.keys(likesObj);
                 const dislikeIds = Object.keys(dislikesObj);
-                const userLiked = !!likesObj[actor.id];
-                const userDisliked = !!dislikesObj[actor.id];
+                const userLiked = !!likesObj[actor.uid || actor.id];
+                const userDisliked = !!dislikesObj[actor.uid || actor.id];
 
                 const actionsRow = document.createElement("div");
                 actionsRow.style.cssText = "display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;";
@@ -3126,10 +3142,10 @@ ${sciCtx}`;
                     const u = getActor();
                     const base = rtdb.ref(`public/projects/${proj.id}/reactions`);
                     if (userLiked) {
-                        base.child(`likes/${u.id}`).remove();
+                        base.child(`likes/${u.uid || u.id}`).remove();
                     } else {
-                        base.child(`dislikes/${u.id}`).remove();
-                        base.child(`likes/${u.id}`).set(true);
+                        base.child(`dislikes/${u.uid || u.id}`).remove();
+                        base.child(`likes/${u.uid || u.id}`).set(true);
                     }
                 };
 
@@ -3143,16 +3159,16 @@ ${sciCtx}`;
                     const u = getActor();
                     const base = rtdb.ref(`public/projects/${proj.id}/reactions`);
                     if (userDisliked) {
-                        base.child(`dislikes/${u.id}`).remove();
+                        base.child(`dislikes/${u.uid || u.id}`).remove();
                     } else {
-                        base.child(`likes/${u.id}`).remove();
-                        base.child(`dislikes/${u.id}`).set(true);
+                        base.child(`likes/${u.uid || u.id}`).remove();
+                        base.child(`dislikes/${u.uid || u.id}`).set(true);
                     }
                 };
 
                 actionsRow.append(likeBtn, dislikeBtn);
 
-                if (proj.authorId === actor.id) {
+                if (proj.authorId === (actor.uid || actor.id)) {
                     const delBtn = document.createElement("button");
                     delBtn.type = "button";
                     delBtn.textContent = "🗑️ حذف";
@@ -3197,7 +3213,7 @@ ${sciCtx}`;
                     if (!txt) return;
                     const u = getActor();
                     rtdb.ref(`public/projects/${proj.id}/comments`).push().set({
-                        authorId: u.id,
+                        authorId: u.uid || u.id,
                         authorName: u.name,
                         text: txt,
                         createdAt: firebase.database.ServerValue.TIMESTAMP
@@ -3274,7 +3290,8 @@ ${sciCtx}`;
                             title,
                             domain,
                             content,
-                            authorId: u.id,
+                            authorId: u.uid || u.id,
+                            authorStudentId: u.id,
                             authorName: u.name,
                             createdAt: firebase.database.ServerValue.TIMESTAMP
                         }).then(() => {
@@ -3351,7 +3368,7 @@ ${sciCtx}`;
             const id = normId((u && u.id) || savedId || "1001") || "1001";
             try { localStorage.setItem("ssp_ff_player_id", id); } catch (_) {}
             const name = String((u && u.username) || document.getElementById("navUsername")?.textContent || "طالب").trim() || "طالب";
-            return { id, name };
+            return { id, name, uid: (window.getCurrentUid ? window.getCurrentUid() : '') };
         }
 
         function registerMeInDirectory() {
@@ -3361,61 +3378,37 @@ ${sciCtx}`;
             const welcomeIdBadge = document.getElementById("welcomeUserIdBadge");
             if (welcomeIdBadge) welcomeIdBadge.textContent = "#" + me.id;
 
+            const uidKey = me.uid || me.id;
             const payload = {
-                id: me.id,
+                studentId: me.id,
                 username: me.name,
                 name: me.name,
                 online: true,
                 lastSeen: firebase.database.ServerValue.TIMESTAMP
             };
-            rtdb.ref(`users/${me.id}`).update(payload).catch(() => {});
-            rtdb.ref(`public/users/${me.id}`).update(payload).catch(() => {});
-            rtdb.ref(`users/${me.id}`).onDisconnect().update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
-            rtdb.ref(`public/users/${me.id}`).onDisconnect().update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+            if (uidKey) {
+                rtdb.ref(`users/${uidKey}`).update(payload).catch(() => {});
+                rtdb.ref(`publicProfiles/${uidKey}`).update(payload).catch(() => {});
+                rtdb.ref(`users/${uidKey}`).onDisconnect().update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+                rtdb.ref(`publicProfiles/${uidKey}`).onDisconnect().update({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+            }
         }
 
         async function findRegisteredUserById(rawId) {
             const targetId = normId(rawId);
-            if (!targetId) return null;
-
-            const paths = [`users/${targetId}`, `public/users/${targetId}`];
-            for (const p of paths) {
-                try {
-                    const snap = await rtdb.ref(p).get();
-                    if (snap && snap.exists()) {
-                        const val = snap.val() || {};
-                        const uname = String(val.username || val.name || "").trim();
-                        if (uname) {
-                            return {
-                                id: targetId,
-                                username: uname,
-                                online: val.online !== false
-                            };
-                        }
-                    }
-                } catch (_) {}
-            }
-
+            if (!targetId || !rtdb) return null;
             try {
-                const allSnap = await rtdb.ref("users").limitToLast(200).get();
-                if (allSnap && allSnap.exists()) {
-                    let found = null;
-                    allSnap.forEach((child) => {
-                        const val = child.val() || {};
-                        const cid = normId(val.id || child.key);
-                        if (cid === targetId) {
-                            found = {
-                                id: targetId,
-                                username: String(val.username || val.name || `طالب #${targetId}`).trim(),
-                                online: val.online !== false
-                            };
-                        }
-                    });
-                    if (found) return found;
-                }
-            } catch (_) {}
-
-            return null;
+                const uid = await window.resolveUidByStudentId(targetId);
+                if (!uid) return null;
+                const snap = await rtdb.ref("publicProfiles/" + uid).get();
+                if (!snap.exists()) return null;
+                const val = snap.val() || {};
+                const uname = String(val.username || "").trim();
+                if (!uname) return null;
+                return { id: targetId, uid, username: uname, online: val.online !== false };
+            } catch (_) {
+                return null;
+            }
         }
 
         async function sendCloudInviteToId(rawTargetId, roomCodeOverride, roomNameOverride) {
@@ -3433,9 +3426,15 @@ ${sciCtx}`;
             const code = normId(roomCodeOverride || document.getElementById("battleRoomCodeBadge")?.textContent || "ROOM-101") || "ROOM-101";
             const roomName = String(roomNameOverride || document.getElementById("battleRoomNameDisplay")?.textContent || `غرفة #${code}`).trim();
 
+            const tUid = await window.resolveUidByStudentId(targetId);
+            if (!tUid) {
+                if (typeof showToast === "function") showToast("هذا ID غير مسجّل في المنصة");
+                return false;
+            }
             try {
-                await rtdb.ref(`public/invites/${targetId}`).push().set({
+                await rtdb.ref(`public/invites/${tUid}`).push().set({
                     fromId: me.id,
+                    fromUid: me.uid || "",
                     fromName: me.name,
                     roomCode: code,
                     roomName,
@@ -3522,7 +3521,8 @@ ${sciCtx}`;
                 }
             } catch (_) {}
 
-            rtdb.ref(`friends/${me.id}/${userObj.id}`).set({
+            rtdb.ref(`friends/${me.uid || me.id}/${userObj.uid || userObj.id}`).set({
+                uid: userObj.uid || "",
                 id: userObj.id,
                 name: userObj.username,
                 addedAt: firebase.database.ServerValue.TIMESTAMP
