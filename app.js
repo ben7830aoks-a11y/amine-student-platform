@@ -2699,6 +2699,21 @@ ${sciCtx}`;
                 }
             };
             currentBattleMovesRef.on("child_added", currentBattleMovesListener);
+
+            // Host: when a guest joins, add them to team B and publish the room state,
+            // so the guest's view and the host's teams both update.
+            if (!window.battleIsGuest) {
+                if (window.__battleMembersRef) window.__battleMembersRef.off();
+                window.__battleMembersRef = db.ref(`public/battles/${cleanCode}/members`);
+                window.__battleMembersRef.on("child_added", (mSnap) => {
+                    if (!mSnap || !mSnap.exists()) return;
+                    const m = mSnap.val() || {};
+                    const oppId = m.studentId || "";
+                    if (!oppId && !m.name) return;
+                    syncOpponentIntoBattleTeams({ id: oppId, studentId: oppId, name: m.name || "طالب", score: 0 });
+                    publishBattleStateNow();
+                });
+            }
         }
 
         function renderInviteBannerWithActions(inviteObj) {
@@ -3261,9 +3276,30 @@ ${sciCtx}`;
             });
         }
 
+        function setupSharingFeedGuards() {
+            const shareSec = document.getElementById("section-sharing");
+            const feed = document.getElementById("sharedProjectsFeed");
+            if (!shareSec || !feed || feed.__guarded) return;
+            feed.__guarded = true;
+            let repairing = false;
+            const repair = () => {
+                if (repairing) return;
+                if (feed.childElementCount === 0 && latestPublicProjects.length) {
+                    repairing = true;
+                    renderPublicProjectsFeed(latestPublicProjects);
+                    repairing = false;
+                }
+            };
+            new MutationObserver(repair).observe(feed, { childList: true });
+            new MutationObserver(() => {
+                if (!shareSec.classList.contains("hidden")) repair();
+            }).observe(shareSec, { attributes: true, attributeFilter: ["class"] });
+        }
+
         function bindSharingPublicSync() {
             const shareSection = document.getElementById("section-sharing");
             if (!shareSection) return;
+            setupSharingFeedGuards();
 
             const actor = getActor();
             if (!sharingInitialized) {
