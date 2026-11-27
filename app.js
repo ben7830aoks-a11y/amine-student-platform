@@ -2448,6 +2448,7 @@ ${sciCtx}`;
         }
 
         function applyRemoteBattleSnapshot(data) {
+            console.info("[battle] remote snapshot received", data && data.roomCode, "seq", data && data.seq, "from", data && data.sourceClientId);
             if (!data || data.sourceClientId === CLIENT_SESSION_ID) return;
             if (typeof data.seq === "number" && data.seq <= lastAppliedBattleSeq) return;
             if (typeof data.seq === "number") lastAppliedBattleSeq = data.seq;
@@ -2603,6 +2604,12 @@ ${sciCtx}`;
             return null;
         }
 
+        // win-battle.js calls these through window.*; without these lines the calls were skipped
+        // silently, so the host never listened to its room and never published its state.
+        window.attachBattleRoomSyncListeners = attachBattleRoomSyncListeners;
+        window.publishBattleStateNow = publishBattleStateNow;
+        window.recordBattleMoveToRoom = recordBattleMoveToRoom;
+
         window.handleCantAnswerClick = function handleCantAnswerClick() {
             if (window.battleIsGuest) {
                 document.querySelectorAll("#battleOptionsGrid button").forEach(x => { x.disabled = true; });
@@ -2661,7 +2668,7 @@ ${sciCtx}`;
             currentBattleRoomRef = db.ref(`public/battles/${cleanCode}`);
             currentBattleRoomListener = (snap) => {
                 if (!snap || !snap.exists()) return;
-                if (!window.battleIsGuest) return;
+                if (!window.battleIsGuest) { console.info("[battle] host ignores room snapshot"); return; }
                 window.battleLiveRival = true;
                 const val = snap.val() || {};
                 if (val.hostSessionId) window.battleHostSessionId = val.hostSessionId;
@@ -2705,8 +2712,10 @@ ${sciCtx}`;
             if (!window.battleIsGuest) {
                 if (window.__battleMembersRef) window.__battleMembersRef.off();
                 window.__battleMembersRef = db.ref(`public/battles/${cleanCode}/members`);
+                console.info("[battle] host listening to members of", cleanCode);
                 window.__battleMembersRef.on("child_added", (mSnap) => {
                     if (!mSnap || !mSnap.exists()) return;
+                    console.info("[battle] member joined:", mSnap.key, mSnap.val());
                     const m = mSnap.val() || {};
                     const oppId = m.studentId || "";
                     if (!oppId && !m.name) return;
