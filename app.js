@@ -1246,9 +1246,7 @@ function insertMathFormulaBlock() {
                         const titleEl = document.getElementById('shareProjTitle');
                         const contentEl = document.getElementById('shareProjContent');
                         if (titleEl && !titleEl.value) titleEl.value = 'عرض صور المشروع (' + userSlides.length + ' صورة)';
-                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:
-' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('
-');
+                        if (contentEl && !contentEl.value) contentEl.value = 'الصور المستخدمة:\n' + userSlides.map((s, i) => (i + 1) + '. ' + s.name).join('\n');
                     }
                 });
             }
@@ -1468,8 +1466,7 @@ function insertMathFormulaBlock() {
                 if (papers.length) {
                     parts.push('أبحاث علمية (OpenAlex): ' + papers.map(p => `${p.title} (${p.year}, اقتباسات: ${p.citedBy})`).join(' | '));
                 }
-                return parts.join('
-');
+                return parts.join('\n');
             };
         })();
 
@@ -1507,8 +1504,7 @@ function insertMathFormulaBlock() {
                 if (!wantsRefs && reply) {
                     const stripped = reply
                         .replace(/\[?المراجع العلمية المرفقة:[\s\S]*$/i, "")
-                        .replace(/(?:^|
-)\s*(?:المراجع|المصادر|References|Sources)\s*:[\s\S]*$/i, "")
+                        .replace(/(?:^|\n)\s*(?:المراجع|المصادر|References|Sources)\s*:[\s\S]*$/i, "")
                         .trim();
                     return stripped || reply;
                 }
@@ -1590,8 +1586,7 @@ ${sciCtx}`;
                     } else if (typeof window.searchWikipediaScience === "function") {
                         const wiki = (await window.searchWikipediaScience(q, "ar")) || (await window.searchWikipediaScience(q, "en"));
                         if (wiki && wiki.extract) {
-                            const firstSent = String(wiki.extract).split(/[.،
-]/)[0].trim();
+                            const firstSent = String(wiki.extract).split(/[.،\n]/)[0].trim();
                             fallbackReply = firstSent || String(wiki.extract).slice(0, 240);
                         }
                     }
@@ -1655,8 +1650,7 @@ ${sciCtx}`;
                 if (editor) {
                     const rawText = (editor.innerText || editor.textContent || '').trim();
                     if (rawText) {
-                        const paras = rawText.split(/
-+/).map(p => p.trim()).filter(p => p.length > 3);
+                        const paras = rawText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 3);
                         paras.forEach((p, idx) => {
                             chunks.push({
                                 source: docTitle + ' (مقطع #' + (idx + 1) + ')',
@@ -1719,11 +1713,8 @@ ${sciCtx}`;
                     return;
                 }
                 out.textContent = scored.map((item, i) =>
-                    (i + 1) + ') [المصدر: ' + item.source + ' | مطابقة: ' + item.score + ']
-' + item.text
-                ).join('
-
-');
+                    (i + 1) + ') [المصدر: ' + item.source + ' | مطابقة: ' + item.score + ']\n' + item.text
+                ).join('\n\n');
             };
 
             window.runMultiAgentWorkflow = function () {
@@ -1744,9 +1735,7 @@ ${sciCtx}`;
                     '• ' + state.researcher,
                     '• ' + state.analyst,
                     '• ' + state.critic
-                ].join('
-
-');
+                ].join('\n\n');
             };
 
             window.runTransformersJsExperiment = async function () {
@@ -1866,9 +1855,7 @@ ${sciCtx}`;
                     const kb = (f.size / 1024).toFixed(1);
                     details.push((i + 1) + ') ' + f.name + ' (' + kb + ' KB — ' + pageGuess + ')');
                 }
-                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:
-' + details.join('
-'));
+                setPdfStatus('تم فحص ' + files.length + ' ملف PDF:\n' + details.join('\n'));
             };
 
             window.preparePdfSplitRange = function () {
@@ -1933,8 +1920,7 @@ ${sciCtx}`;
             window.sendPdfSummaryToWorkshop = function () {
                 const taskInput = document.getElementById('taskInput');
                 if (taskInput && typeof addTask === 'function') {
-                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('
-')[0].slice(0, 80);
+                    taskInput.value = 'مراجعة PDF: ' + window.__lastPdfProcessorReport.split('\n')[0].slice(0, 80);
                     addTask();
                     if (typeof showToast === 'function') showToast('تمت إضافة مهمة مراجعة PDF');
                 }
