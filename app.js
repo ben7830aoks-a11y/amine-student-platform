@@ -2926,8 +2926,10 @@ ${sciCtx}`;
                     }).then(() => {
                         infoSpan.textContent = `📩 تم إرسال دعوة المعركة إلى #${targetId} للغرفة #${code}`;
                         wbToast(`تم إرسال دعوة إلى #${targetId} 📩`);
-                    }).catch(() => {
-                        wbToast("تعذر إرسال الدعوة الآن");
+                    }).catch((err) => {
+                        console.error("[invite] send failed:", err);
+                        const reason = (err && (err.code || err.message)) || "unknown";
+                        wbToast("تعذر إرسال الدعوة الآن (" + reason + ")");
                     });
                 };
 
@@ -3379,9 +3381,11 @@ ${sciCtx}`;
                     showToast(`تم إرسال الدعوة إلى #${targetId} 📩`);
                 }
                 return true;
-            } catch (_) {
+            } catch (err) {
+                console.error("[invite] send failed:", err);
+                const reason = (err && (err.code || err.message)) || "unknown";
                 if (typeof showToast === "function") {
-                    showToast("تعذر إرسال الدعوة الآن");
+                    showToast("تعذر إرسال الدعوة الآن (" + reason + ")");
                 }
                 return false;
             }
