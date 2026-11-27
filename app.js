@@ -2440,6 +2440,7 @@ ${sciCtx}`;
                 hostId: actor.id,
                 hostName: actor.name,
                 hostSessionId: window.battleHostSessionId || CLIENT_SESSION_ID,
+                hostUid: (window.getCurrentUid ? window.getCurrentUid() : '') || '',
                 sourceClientId: CLIENT_SESSION_ID,
                 seq: Date.now(),
                 updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -2801,6 +2802,14 @@ ${sciCtx}`;
                             isCustom: true
                         }];
 
+                    const guestUid = window.getCurrentUid ? window.getCurrentUid() : '';
+                    if (guestUid) {
+                        await db.ref(`public/battles/${targetRoom}/members/${guestUid}`).set({
+                            name: actor.name,
+                            studentId: actor.id,
+                            joinedAt: firebase.database.ServerValue.TIMESTAMP
+                        });
+                    }
                     await db.ref(`public/battles/${targetRoom}`).update({
                         roomCode: targetRoom,
                         roomName: existingRoomData.roomName || roomName,
@@ -2959,10 +2968,25 @@ ${sciCtx}`;
                 joinBtn.type = "button";
                 joinBtn.textContent = "🔗 انضمام للغرفة";
                 joinBtn.style.cssText = "background:#0284c7; color:#fff; border:none; padding:6px 11px; border-radius:7px; cursor:pointer; font-size:12px; font-weight:bold;";
-                joinBtn.onclick = () => {
+                joinBtn.onclick = async () => {
                     const code = cleanKey(roomJoinInput.value || getCurrentRoomCodeClean(), "ROOM-101");
                     setCurrentRoomUi(code);
                     window.battleIsGuest = true;
+                    const joinUid = window.getCurrentUid ? window.getCurrentUid() : '';
+                    if (joinUid && rtdb) {
+                        try {
+                            await rtdb.ref(`public/battles/${code}/members/${joinUid}`).set({
+                                name: getActor().name,
+                                studentId: getActor().id,
+                                joinedAt: firebase.database.ServerValue.TIMESTAMP
+                            });
+                        } catch (err) {
+                            console.error("[battle] join failed:", err);
+                            wbToast("تعذر الانضمام إلى الغرفة (" + ((err && err.code) || "خطأ") + ")");
+                            window.battleIsGuest = false;
+                            return;
+                        }
+                    }
                     attachBattleRoomSyncListeners(code);
                     infoSpan.textContent = `🔗 متصل بالغرفة #${code}`;
                     wbToast(`تم الانضمام ومزامنة الغرفة #${code}`);
