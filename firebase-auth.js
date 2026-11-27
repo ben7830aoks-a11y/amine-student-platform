@@ -113,6 +113,21 @@
                 gender = v.gender || gender;
             }
         } catch (_) {}
+        if (!studentId) {
+            // Fallback: the public profile also stores the 6-digit student ID.
+            try {
+                const p = await firebase.database().ref('publicProfiles/' + user.uid + '/studentId').get();
+                if (p.exists()) studentId = String(p.val());
+            } catch (_) {}
+        }
+        // Every legacy reader takes the ID from this key, so make it the account's real ID.
+        // Without this, an old 4-digit value left in the browser keeps showing up.
+        if (studentId) {
+            try { localStorage.setItem('ssp_ff_player_id', studentId); } catch (_) {}
+        } else {
+            try { localStorage.removeItem('ssp_ff_player_id'); } catch (_) {}
+            toast('تعذّر قراءة رقمك الدراسي، أعد تحميل الصفحة');
+        }
         window.currentUser = { uid: user.uid, id: studentId, username, gender, email: user.email || '' };
         const nameEl = document.getElementById('navUsername');
         if (nameEl) nameEl.textContent = username;
