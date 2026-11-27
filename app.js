@@ -3122,6 +3122,12 @@ ${sciCtx}`;
         let currentSharingUserId = "";
         let latestPublicProjects = [];
 
+        // win-social-study.js renders the feed from a local copy (localStorage), which wiped
+        // the cloud projects whenever the section was opened. Route every render to the cloud list.
+        window.renderSharedProjects = function renderSharedProjects() {
+            renderPublicProjectsFeed(latestPublicProjects);
+        };
+
         function renderPublicProjectsFeed(projects) {
             const feed = document.getElementById("sharedProjectsFeed");
             if (!feed) return;
