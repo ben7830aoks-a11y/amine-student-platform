@@ -118,8 +118,37 @@
         if (nameEl) nameEl.textContent = username;
         const idEl = document.getElementById('navUserIdentityId');
         if (idEl) idEl.textContent = 'ID: #' + (studentId || '—');
+        showUidBox(user.uid);
         showApp(true);
         loadMainApp();
+    }
+
+    // Shows the account UID in the sidebar with a copy button (for the Firebase console).
+    function showUidBox(uid) {
+        const header = document.querySelector('.sidebar-header');
+        if (!header) return;
+        let box = document.getElementById('uidBox');
+        if (!box) {
+            box = document.createElement('div');
+            box.id = 'uidBox';
+            box.style.cssText = 'margin-top:8px; font-size:11px; color:#94a3b8; word-break:break-all;';
+            const code = document.createElement('code');
+            code.id = 'uidBoxCode';
+            code.style.cssText = 'color:#fbbf24; user-select:all;';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = '📋 نسخ UID';
+            btn.style.cssText = 'margin-inline-start:6px; font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:#e2e8f0; cursor:pointer;';
+            btn.onclick = async () => {
+                const v = document.getElementById('uidBoxCode')?.textContent || '';
+                try { await navigator.clipboard.writeText(v); toast('تم نسخ UID ✅'); }
+                catch (_) { toast('انسخ النص يدوياً: ' + v); }
+            };
+            box.append('UID: ', code, btn);
+            header.appendChild(box);
+        }
+        const codeEl = document.getElementById('uidBoxCode');
+        if (codeEl) codeEl.textContent = uid;
     }
 
     // ---- identity helpers used across the app ----
