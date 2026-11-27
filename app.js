@@ -2516,7 +2516,7 @@ ${sciCtx}`;
                                 } else {
                                     existingBtns[i].textContent = opt.text;
                                 }
-                                existingBtns[i].disabled = !!opt.disabled;
+                                existingBtns[i].disabled = !!window.battleAnswered;
                             }
                         });
                     } else {
@@ -2526,13 +2526,18 @@ ${sciCtx}`;
                             b.type = "button";
                             b.className = "battle-option-btn";
                             b.textContent = opt.text;
-                            b.disabled = !!opt.disabled;
+                            b.disabled = !!window.battleAnswered;
                             b.onclick = () => {
-                                recordBattleMoveToRoom(code, {
-                                    type: "answer",
-                                    optionIndex: opt.index,
-                                    optionText: opt.text
-                                });
+                                const localIdx = mapRemoteOptionToLocal(opt.text);
+                                if (localIdx >= 0 && typeof window.submitBattleChoice === "function") {
+                                    window.submitBattleChoice(localIdx);
+                                } else {
+                                    recordBattleMoveToRoom(code, {
+                                        type: "answer",
+                                        optionIndex: opt.index,
+                                        optionText: opt.text
+                                    });
+                                }
                             };
                             optsGrid.appendChild(b);
                         });
@@ -2560,6 +2565,13 @@ ${sciCtx}`;
                 return firebase.database();
             }
             return null;
+        }
+
+        function mapRemoteOptionToLocal(text) {
+            const q = window.battleQuestions && window.battleQuestions[window.battleRoundIndex];
+            if (!q || !Array.isArray(q.options)) return -1;
+            const clean = String(text || "").replace(/^[A-D1-4]\s*/, "").trim();
+            return q.options.findIndex(o => String(o).trim() === clean);
         }
 
         function recordBattleMoveToRoom(roomCode, movePayload) {
