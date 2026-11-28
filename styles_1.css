@@ -332,3 +332,14 @@ body[data-gender="female"] .tch-male { display: none; }
 @media (prefers-reduced-motion: reduce) {
     .tch-torso, .tch-head, .tch-arm-r, .tch-arm-l, .tch-leg-l, .tch-leg-r, .tch-shadow { animation: none; }
 }
+
+/* ==================== المعلم أكبر، ويمشي عند تغطيته عناصر مهمة ==================== */
+.bot-fab-btn {
+    width: 124px;
+    height: 206px;
+}
+.floating-bot-wrapper.bot-walking .tch-leg-l,
+.floating-bot-wrapper.bot-walking .tch-leg-r { animation-duration: 0.5s; }
+.floating-bot-wrapper.bot-walking .tch-torso { animation-duration: 0.5s; }
+.floating-bot-wrapper.bot-walking .tch-arm-l { animation-duration: 0.9s; }
+.floating-bot-wrapper.face-left .bot-teacher-svg { transform: scaleX(-1); }
