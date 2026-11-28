@@ -440,6 +440,28 @@
                                     </div>
                                 </div>
 
+                                <div id="notePdfPanel" class="note-pdf-panel">
+                                    <div class="note-pdf-head">
+                                        <strong>📄 ملفات PDF في هذه الملاحظة</strong>
+                                        <label class="note-pdf-upload">+ رفع PDF
+                                            <input type="file" id="notePdfInput" accept="application/pdf,.pdf" hidden>
+                                        </label>
+                                    </div>
+                                    <div id="notePdfList" class="note-pdf-list"></div>
+                                    <div id="notePdfActions" class="note-pdf-actions hidden">
+                                        <button type="button" class="word-tool-btn" onclick="explainNotePdf('explain')">📖 اشرح</button>
+                                        <button type="button" class="word-tool-btn" onclick="explainNotePdf('summary')">📝 لخّص</button>
+                                        <button type="button" class="word-tool-btn" onclick="explainNotePdf('method')">🧭 حلّل الخطوات</button>
+                                        <button type="button" class="word-tool-btn" onclick="explainNotePdf('review')">❓ أسئلة مراجعة</button>
+                                        <input type="text" id="notePdfQuestion" placeholder="أو اسأل سؤالاً محدداً عن الملف..." class="note-pdf-question">
+                                        <button type="button" class="word-tool-btn" onclick="explainNotePdf('custom')">💬 اسأل</button>
+                                    </div>
+                                    <div id="notePdfStatus" class="note-pdf-status"></div>
+                                    <div id="notePdfOutput" class="note-pdf-output hidden"></div>
+                                    <div id="notePdfOutputActions" class="note-pdf-actions hidden">
+                                        <button type="button" class="word-tool-btn" onclick="insertNotePdfOutputIntoNote()">📝 أضف الشرح إلى الملاحظة</button>
+                                    </div>
+                                </div>
                                 <div class="word-desk-canvas">
                                     <div id="notePageSheet" class="note-page-sheet">
                                         <div class="word-page-header-meta">
@@ -1548,6 +1570,7 @@
     <script src="win-auth.js"></script>
     <script src="win-calc-graph.js"></script>
     <script src="win-notes.js"></script>
+    <script src="note-pdf.js"></script>
     <script src="win-workshop.js"></script>
     <script src="win-battle.js"></script>
     <script src="win-social-study.js"></script>

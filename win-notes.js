@@ -136,6 +136,7 @@
             if (headerTitle) headerTitle.textContent = note.title || 'مستند الطالب الذكي';
             setEditorContentFromNote(note);
             updateNoteStats();
+            if (typeof window.renderNoteAttachments === 'function') window.renderNoteAttachments();
         }
 
         function createNewNote() {

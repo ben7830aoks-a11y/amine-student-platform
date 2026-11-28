@@ -111,9 +111,10 @@
     Platform.db = function () {
         if (!window.idb) return null;
         if (!dbPromise) {
-            dbPromise = window.idb.openDB('ssp-platform', 1, {
+            dbPromise = window.idb.openDB('ssp-platform', 2, {
                 upgrade(db) {
                     if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
+                    if (!db.objectStoreNames.contains('attachments')) db.createObjectStore('attachments', { keyPath: 'id' });
                 }
             });
         }
@@ -124,6 +125,23 @@
         if (!db) return false;
         await (await db).put('notes', { ...note, updatedAt: Date.now() });
         return true;
+    };
+    // Extracted PDF text lives in IndexedDB (too large for localStorage).
+    Platform.saveAttachmentText = async function (id, text) {
+        const db = Platform.db();
+        if (!db) return false;
+        await (await db).put('attachments', { id, text, savedAt: Date.now() });
+        return true;
+    };
+    Platform.getAttachmentText = async function (id) {
+        const db = Platform.db();
+        if (!db) return '';
+        const rec = await (await db).get('attachments', id);
+        return rec ? rec.text : '';
+    };
+    Platform.deleteAttachmentText = async function (id) {
+        const db = Platform.db();
+        if (db) await (await db).delete('attachments', id);
     };
     Platform.getAllNotesLocal = async function () {
         const db = Platform.db();
@@ -188,6 +206,11 @@
         if (!res.ok) throw new Error('AI proxy error ' + res.status);
         const data = await res.json();
         return String(data.text || '');
+    };
+
+    /* ---------- 9b. Model hook used by the AI section (app.js askAiDirectEngine) ---------- */
+    window.callGeminiOrAiModel = async function callGeminiOrAiModel(prompt) {
+        return Platform.askAi(prompt); // throws if no proxy is configured; the engine then falls back
     };
 
     /* ---------- 10. Assistant entry point called by shell-bot.js ----------
