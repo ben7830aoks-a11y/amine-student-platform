@@ -29,6 +29,15 @@
         return `القسم المفتوح: ${sec}` + (note ? `\nالملاحظة المفتوحة (مقتطف):\n${note}` : '');
     }
 
+    // Gesture state on the teacher: thinking while waiting, nod on success, shake on error.
+    function setBotState(state, ms) {
+        const w = document.getElementById('floatingBotWrapper');
+        if (!w) return;
+        w.classList.remove('bot-thinking', 'bot-speaking', 'bot-nod', 'bot-error');
+        if (state) w.classList.add(state);
+        if (state && ms) setTimeout(() => w.classList.remove(state), ms);
+    }
+
     function appendMsg(sender, html, isUser) {
         const box = chatBox();
         if (!box) return;
@@ -63,6 +72,7 @@
 
         appendMsg(window.currentUser?.username || 'أنت', q, true);
         appendMsg('المساعد', '<em>جاري التفكير...</em>', false);
+        setBotState('bot-thinking');
         const thinking = chatBox()?.lastElementChild;
 
         const prompt = `${SYSTEM}\n\n${currentContext()}\n\nسؤال الطالب:\n${q}`.slice(0, MAX_PROMPT);
@@ -71,10 +81,13 @@
             const html = window.Platform.markdownToSafeHtml(String(reply || '').trim() || 'لم يصل رد.');
             if (thinking) thinking.remove();
             appendMsg('المساعد', html, false);
+            setBotState('bot-speaking', 2600);
+            setTimeout(() => setBotState('bot-nod', 1400), 600);
         } catch (err) {
             console.error('[academic-assistant]', err);
             if (thinking) thinking.remove();
             appendMsg('المساعد', 'تعذر الحصول على الرد الآن. تحقق من اتصالك أو من الخادم الوسيط.', false);
+            setBotState('bot-error', 1600);
         }
     }
 

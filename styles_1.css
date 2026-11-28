@@ -386,3 +386,63 @@ body[data-gender="female"] .tch-male { display: none; }
     max-height: 320px; overflow-y: auto;
 }
 .note-pdf-inserted { margin: 12px 0; padding: 10px; border-right: 3px solid var(--accent, #38bdf8); background: rgba(56,189,248,0.06); }
+
+/* ==================== المعلم: حجم ربع الشاشة وحركات أكثر طبيعية ==================== */
+.bot-fab-btn {
+    height: 25vh;
+    min-height: 140px;
+    width: calc(max(140px, 25vh) * 0.6);
+}
+.floating-bot-wrapper .bot-teacher-svg { height: 100%; width: 100%; }
+
+/* --- idle life --- */
+#botEyeLeft, #botEyeRight { transform-box: view-box; transform-origin: 60px 42px; animation: tchBlink 5.5s ease-in-out infinite; }
+#botEyeRight { animation-delay: 0.08s; }
+@keyframes tchBlink {
+    0%, 91%, 100% { scale: 1 1; }
+    94% { scale: 1 0.12; }
+}
+.tch-torso { animation-name: tchBreathe; animation-duration: 3.2s; }
+.tch-torso { translate: 0 0; }
+.tch-head { rotate: calc(var(--look, 0) * 7deg); transition: rotate 0.25s ease-out; }
+.tch-leg-l, .tch-leg-r { will-change: transform; }
+
+/* weight shift between the feet */
+.tch-torso { animation: tchBreathe 3.2s ease-in-out infinite, tchShift 6s ease-in-out infinite; }
+@keyframes tchShift { 0%,100% { translate: -1.2px 0; } 50% { translate: 1.2px 0; } }
+
+/* --- states from the assistant --- */
+.bot-thinking .tch-arm-r { animation: tchThink 1.6s ease-in-out infinite; transform-origin: 84px 78px; }
+@keyframes tchThink { 0%,100% { transform: rotate(-58deg); } 50% { transform: rotate(-64deg); } }
+.bot-thinking .tch-head { rotate: calc(var(--look, 0) * 7deg + 8deg); }
+
+.bot-speaking .tch-mouth { animation: tchTalk 0.28s ease-in-out infinite; transform-box: view-box; transform-origin: 60px 55px; }
+@keyframes tchTalk { 0%,100% { scale: 1 1; } 50% { scale: 1 1.9; } }
+
+.bot-nod .tch-head { animation: tchNodTwice 0.7s ease-in-out 2; transform-box: view-box; transform-origin: 60px 60px; }
+@keyframes tchNodTwice { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(7deg); } }
+
+.bot-error .tch-head { animation: tchShake 0.4s ease-in-out 4; transform-box: view-box; transform-origin: 60px 60px; }
+@keyframes tchShake { 0%,100% { transform: rotate(0deg); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+
+/* --- walking: arms counter-swing, body bobs with each step --- */
+.floating-bot-wrapper.bot-walking .tch-arm-r { animation: tchSway 0.5s ease-in-out infinite reverse; transform-box: view-box; transform-origin: 84px 78px; }
+.floating-bot-wrapper.bot-walking .tch-torso { animation: tchBob 0.5s ease-in-out infinite; }
+@keyframes tchBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* --- entrance: walks in from the side on the first load --- */
+.floating-bot-wrapper.bot-entering { animation: botEnter 2.2s ease-out both; }
+@keyframes botEnter {
+    0% { transform: translateX(-180px); opacity: 0; }
+    60% { opacity: 1; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+/* --- pause everything while the tab is in the background --- */
+body.bot-paused .bot-teacher-svg * { animation-play-state: paused !important; }
+
+@media (prefers-reduced-motion: reduce) {
+    #botEyeLeft, #botEyeRight, .tch-torso, .tch-head, .bot-thinking .tch-arm-r,
+    .bot-speaking .tch-mouth, .bot-nod .tch-head, .bot-error .tch-head,
+    .floating-bot-wrapper.bot-entering { animation: none !important; }
+}
