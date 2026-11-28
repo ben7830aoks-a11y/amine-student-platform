@@ -148,6 +148,8 @@
             toast('تعذّر قراءة رقمك الدراسي، أعد تحميل الصفحة');
         }
         window.currentUser = { uid: user.uid, id: studentId, username, gender, email: user.email || '' };
+        // The bot teacher is drawn as a man or a woman depending on the account's gender.
+        document.body.dataset.gender = gender === 'female' ? 'female' : 'male';
         const nameEl = document.getElementById('navUsername');
         if (nameEl) nameEl.textContent = username;
         const idEl = document.getElementById('navUserIdentityId');
@@ -231,6 +233,12 @@
         }
         const s = document.createElement('script');
         s.src = 'app.js';
+        // The notes upgrade must load after app.js so it can replace the older handlers.
+        s.onload = () => {
+            const v2 = document.createElement('script');
+            v2.src = 'note-editor-v2.js';
+            document.body.appendChild(v2);
+        };
         document.body.appendChild(s);
     }
 
@@ -248,7 +256,9 @@
                 if (!username) { toast('أدخل اسم المستخدم'); return; }
                 if (pass !== confirm) { toast('كلمتا المرور غير متطابقتين'); return; }
                 const femaleBtn = document.getElementById('regBtnFemale');
-                const gender = femaleBtn && (femaleBtn.classList.contains('active-female') || femaleBtn.classList.contains('active')) ? 'female' : 'male';
+                const pickedFemale = !!(femaleBtn && (femaleBtn.classList.contains('active-female') || femaleBtn.classList.contains('active')))
+                    || document.body.classList.contains('female-theme');
+                const gender = pickedFemale ? 'female' : 'male';
                 registering = true;
                 try {
                     await register(username, email, pass, gender);
