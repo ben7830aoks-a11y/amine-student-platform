@@ -128,6 +128,50 @@
         syncNote();
     };
 
+    // ---------- 3) Table line colour (black by default, changeable) ----------
+    let lastRange = null;
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+            const r = sel.getRangeAt(0);
+            const ed = editor();
+            if (ed && ed.contains(r.commonAncestorContainer)) lastRange = r.cloneRange();
+        }
+    });
+
+    function tableAtSelection() {
+        const node = lastRange && lastRange.commonAncestorContainer;
+        const el = node && (node.nodeType === 1 ? node : node.parentElement);
+        return el ? el.closest('table.note-table') : null;
+    }
+
+    function applyTableLineColor(color, allTables) {
+        const ed = editor();
+        if (!ed) return;
+        const targets = allTables ? ed.querySelectorAll('table.note-table') : [tableAtSelection()].filter(Boolean);
+        if (!targets.length) {
+            if (typeof showToast === 'function') showToast('ضع المؤشر داخل الجدول أولاً، أو اختر "كل الجداول"');
+            return;
+        }
+        targets.forEach(t => t.style.setProperty('--tbl-line', color));
+        syncNote();
+    }
+
+    function addTableColorControl() {
+        const tableBtn = document.querySelector('[onclick*="insertWordTable"]');
+        if (!tableBtn || document.getElementById('tableLineColorWrap')) return;
+        const wrap = document.createElement('span');
+        wrap.id = 'tableLineColorWrap';
+        wrap.className = 'table-line-color-wrap';
+        wrap.innerHTML = '<label title="لون خطوط الجدول">🎨 لون الجدول '
+            + '<input type="color" id="tableLineColor" value="#000000"></label>'
+            + '<button type="button" class="word-tool-btn" id="tableLineColorAll">كل الجداول</button>';
+        tableBtn.after(wrap);
+        const input = wrap.querySelector('#tableLineColor');
+        input.addEventListener('input', () => applyTableLineColor(input.value, false));
+        wrap.querySelector('#tableLineColorAll').addEventListener('click', () => applyTableLineColor(input.value, true));
+    }
+
     // Resize from a corner. The opposite corner stays in place; aspect ratio is kept.
     let resizing = null, moving = null, pressTimer = null, pressFig = null;
 
@@ -214,6 +258,7 @@
         if (moving) { finishMove(e.clientX, e.clientY); }
     });
 
+    addTableColorControl();
     // Keep the editor free of stray handles from earlier versions when a note is loaded.
     new MutationObserver(() => {
         document.querySelectorAll('.img-side-resize-handle').forEach(h => h.remove());
