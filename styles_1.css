@@ -242,3 +242,93 @@
 @media (prefers-reduced-motion: reduce) {
     .floating-bot-wrapper .bot-fab-btn { animation: none; }
 }
+
+/* ==================== أيقونة المساعد: معلم بالرسم المتقدم ==================== */
+.bot-fab-btn {
+    width: 78px;
+    height: 78px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+}
+.bot-teacher-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+}
+.bot-fab-btn .bot-watch-tag {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: 2;
+}
+#botEyeLeft, #botEyeRight { transition: transform 0.08s linear; }
+
+/* ==================== المعلم حسب الجنس ==================== */
+.tch-female { display: none; }
+body[data-gender="female"] .tch-female { display: inline; }
+body[data-gender="female"] .tch-male { display: none; }
+
+/* ==================== المعلم بالجسم كاملاً ==================== */
+.bot-fab-btn {
+    width: 84px;
+    height: 140px;
+    border-radius: 42px;
+    padding: 0;
+    overflow: hidden;
+}
+.bot-teacher-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* ==================== مشهد المحاضرة: لوح وأستاذ بجسم كامل ==================== */
+.bot-fab-btn {
+    width: 132px;
+    height: 165px;
+    border-radius: 22px;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid var(--accent);
+}
+
+/* ==================== المعلم المتحرك: جسم إنسان يتحرك ==================== */
+.bot-fab-btn {
+    width: 96px;
+    height: 160px;
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+.bot-fab-btn:hover, .bot-fab-btn:active { background: transparent; }
+.bot-teacher-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+}
+/* pivots: transform-origin in the SVG's own coordinates */
+.tch-torso { animation: tchBreathe 3.2s ease-in-out infinite; }
+.tch-head  { transform-box: view-box; transform-origin: 60px 60px; animation: tchNod 4.8s ease-in-out infinite; }
+.tch-arm-r { transform-box: view-box; transform-origin: 84px 78px; animation: tchExplain 2.8s ease-in-out infinite; }
+.tch-arm-l { transform-box: view-box; transform-origin: 36px 78px; animation: tchSway 3.6s ease-in-out infinite; }
+.tch-leg-l { transform-box: view-box; transform-origin: 49px 124px; animation: tchStep 1.6s ease-in-out infinite; }
+.tch-leg-r { transform-box: view-box; transform-origin: 71px 124px; animation: tchStep 1.6s ease-in-out infinite reverse; }
+.tch-shadow { animation: tchShadow 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+@keyframes tchBreathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes tchNod     { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-3deg); } }
+@keyframes tchExplain { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(-34deg); } }
+@keyframes tchSway    { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes tchStep    { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes tchShadow  { 0%,100% { transform: scale(1); } 50% { transform: scale(0.94); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .tch-torso, .tch-head, .tch-arm-r, .tch-arm-l, .tch-leg-l, .tch-leg-r, .tch-shadow { animation: none; }
+}
