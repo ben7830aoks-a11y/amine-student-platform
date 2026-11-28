@@ -343,3 +343,11 @@ body[data-gender="female"] .tch-male { display: none; }
 .floating-bot-wrapper.bot-walking .tch-torso { animation-duration: 0.5s; }
 .floating-bot-wrapper.bot-walking .tch-arm-l { animation-duration: 0.9s; }
 .floating-bot-wrapper.face-left .bot-teacher-svg { transform: scaleX(-1); }
+
+/* ==================== تحسين طفيف للرسم ==================== */
+.bot-teacher-svg {
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4)) drop-shadow(0 0 8px rgba(56,189,248,0.25));
+}
+.floating-bot-wrapper.face-left .bot-teacher-svg {
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4)) drop-shadow(0 0 8px rgba(56,189,248,0.25));
+}

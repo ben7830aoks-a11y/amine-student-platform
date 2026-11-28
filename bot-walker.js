@@ -45,30 +45,38 @@
         return hits;
     }
 
+    // Candidate positions spread over the whole viewport (left, right, top and bottom),
+    // so the teacher can walk sideways as well as up and down.
     function spots(w, h) {
-        const m = 10, W = window.innerWidth, H = window.innerHeight;
-        return [
-            { left: m, top: H - h - m },                       // bottom-left
-            { left: W - w - m, top: H - h - m },               // bottom-right
-            { left: m, top: m + 60 },                          // top-left (below the header)
-            { left: W - w - m, top: m + 60 },                  // top-right
-            { left: m, top: (H - h) / 2 },                     // middle-left
-            { left: W - w - m, top: (H - h) / 2 }              // middle-right
-        ];
+        const m = 10, top0 = 56;
+        const W = window.innerWidth, H = window.innerHeight;
+        const cols = Math.max(3, Math.min(8, Math.floor(W / 220)));
+        const rows = Math.max(3, Math.min(6, Math.floor(H / 200)));
+        const out = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const left = m + (c * (W - w - 2 * m)) / (cols - 1);
+                const top = top0 + (r * (H - h - top0 - m)) / (rows - 1);
+                out.push({ left: Math.round(Math.max(m, Math.min(W - w - m, left))), top: Math.round(Math.max(top0, Math.min(H - h - m, top))) });
+            }
+        }
+        return out;
     }
 
     function rectAt(s, w, h) {
         return { left: s.left, top: s.top, right: s.left + w, bottom: s.top + h };
     }
 
-    function walkTo(target, facingLeft) {
+    function walkTo(target, facingLeft, secsHint) {
         walking = true;
         lastMoveAt = Date.now();
         wrapper.classList.add('bot-walking');
         wrapper.classList.toggle('face-left', facingLeft);
         wrapper.style.bottom = 'auto';
         wrapper.style.right = 'auto';
-        wrapper.style.transition = 'left 1.4s linear, top 1.4s linear';
+        const dist = Math.hypot(target.left - parseFloat(wrapper.style.left || 0), target.top - parseFloat(wrapper.style.top || 0));
+        const secs = Math.min(3.2, Math.max(0.9, dist / 260));
+        wrapper.style.transition = `left ${secs}s linear, top ${secs}s linear`;
         wrapper.style.left = target.left + 'px';
         wrapper.style.top = target.top + 'px';
         try { localStorage.setItem('smartStudentBotPos', JSON.stringify({ left: target.left, top: target.top })); } catch (_) {}
@@ -76,7 +84,7 @@
             wrapper.style.transition = '';
             wrapper.classList.remove('bot-walking');
             walking = false;
-        }, 1450);
+        }, secs * 1000 + 50);
     }
 
     function check() {
@@ -91,10 +99,10 @@
 
         let best = null, bestScore = Infinity;
         for (const s of spots(w, h)) {
-            const r = rectAt(s, w, h);
-            const cover = coveredRects(r).length;
             const dist = Math.hypot(s.left - cur.left, s.top - cur.top);
-            const score = cover * 1000 + dist;
+            if (dist < 60) continue;                       // do not shuffle in place
+            const cover = coveredRects(rectAt(s, w, h)).length;
+            const score = cover * 1000 + dist * 0.6;
             if (score < bestScore) { bestScore = score; best = s; }
         }
         if (best) walkTo(best, best.left < cur.left);
