@@ -446,3 +446,10 @@ body.bot-paused .bot-teacher-svg * { animation-play-state: paused !important; }
     .bot-speaking .tch-mouth, .bot-nod .tch-head, .bot-error .tch-head,
     .floating-bot-wrapper.bot-entering { animation: none !important; }
 }
+
+/* ==================== المعلم بثلث ارتفاع الشاشة ==================== */
+.bot-fab-btn {
+    height: 33vh;
+    min-height: 180px;
+    width: calc(max(180px, 33vh) * 0.6);
+}
