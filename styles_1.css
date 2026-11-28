@@ -225,3 +225,20 @@
             align-items: center;
             justify-content: space-between;
         }
+
+/* ==================== حركة المساعد العائم ==================== */
+@keyframes botFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+.floating-bot-wrapper .bot-fab-btn {
+    animation: botFloat 3.2s ease-in-out infinite;
+    will-change: transform;
+}
+.floating-bot-wrapper .bot-fab-btn:active,
+.floating-bot-wrapper .bot-fab-btn:hover {
+    animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+    .floating-bot-wrapper .bot-fab-btn { animation: none; }
+}
